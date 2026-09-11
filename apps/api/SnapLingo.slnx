@@ -1,0 +1,10 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/SnapLingo.Api/SnapLingo.Api.csproj" />
+    <Project Path="src/SnapLingo.Domain/SnapLingo.Domain.csproj" />
+    <Project Path="src/SnapLingo.Infrastructure/SnapLingo.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/SnapLingo.Infrastructure.Tests/SnapLingo.Infrastructure.Tests.csproj" />
+  </Folder>
+</Solution>

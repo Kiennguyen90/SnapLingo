@@ -11,8 +11,39 @@ repetition, dùng chính ảnh làm "memory anchor".
 
 ## Trạng thái dự án
 
-Giai đoạn ý tưởng / đặc tả kỹ thuật, chuẩn bị build bản Android prototype đầu
-tiên để khảo sát người dùng trước khi triển khai production.
+Backend API đã có khung sườn cơ bản (Phase 1: domain + database + migrations,
+chưa nối OpenAI). Chuẩn bị build bản Android prototype để khảo sát người dùng
+trước khi triển khai production.
+
+## Chạy API local
+
+Yêu cầu: .NET 10 SDK, Docker Desktop.
+
+```bash
+# 1. Copy .env mẫu (docker compose đọc các biến này)
+cp .env.example .env
+
+# 2. Chạy PostgreSQL
+docker compose -f infra/docker-compose.yml up -d
+
+# 3. Áp dụng migration (lần đầu hoặc sau khi đổi model)
+cd apps/api
+dotnet tool restore
+dotnet ef database update --project src/SnapLingo.Infrastructure --startup-project src/SnapLingo.Api
+
+# 4. Chạy API
+dotnet run --project src/SnapLingo.Api
+```
+
+- Swagger UI: `https://localhost:<port>/swagger`
+- Health check: `GET /health` (kiểm tra kết nối PostgreSQL)
+- Chạy test: `dotnet test` (trong `apps/api`)
+
+Cấu trúc solution theo đúng đặc tả: `SnapLingo.Domain` (entities/enums thuần,
+không phụ thuộc EF) → `SnapLingo.Infrastructure` (EF Core DbContext,
+configurations, migrations, Npgsql) → `SnapLingo.Api` (Program.cs, health
+check, Swagger). Chưa có `SnapLingo.Application`/`SnapLingo.Contracts` — sẽ
+thêm khi có logic/DTO thật ở phase sinh lesson (tránh project rỗng).
 
 ## Tài liệu trong repo
 
