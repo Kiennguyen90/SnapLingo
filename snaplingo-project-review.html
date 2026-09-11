@@ -363,7 +363,7 @@
     <div class="tagline">Chụp một khoảnh khắc đời thường, tráng thành một bài học tiếng Anh.</div>
     <div class="exif">
       <span><b>DOC</b> Product Review</span>
-      <span><b>VERSION</b> 1.1 — revised after feedback</span>
+      <span><b>VERSION</b> 1.2 — 2-stage rollout</span>
       <span><b>UPDATED</b> 11.09.2026</span>
       <span><b>SCOPE</b> Android prototype → Production</span>
     </div>
@@ -505,7 +505,7 @@
         <div class="gtag">05.2 — CHI PHÍ · QUYẾT ĐỊNH</div>
         <h3>Chi phí AI mỗi lesson</h3>
         <p class="problem">Vision + LLM + TTS tốn phí mỗi lần sinh bài học — miễn phí toàn bộ ở giai đoạn đầu sẽ khó bền nếu không kiểm soát chi phí gốc.</p>
-        <p class="fix"><b>Quyết định</b>Miễn phí trong giai đoạn thử nghiệm; kiểm soát chi phí bằng kiến trúc lai CNN on-device + LLM text-only — xem chi tiết ở Frame 06.</p>
+        <p class="fix"><b>Quyết định</b>Miễn phí trong giai đoạn thử nghiệm. Giai đoạn 1 chấp nhận chi phí vision để validate nhanh; giai đoạn 2 mới tối ưu bằng CNN on-device + LLM text-only, dựa trên report đo thực tế — xem Frame 06.</p>
       </div>
 
       <div class="gap-card">
@@ -563,29 +563,29 @@
   <section class="frame">
     <div class="frame-tab">06 / 07</div>
     <div class="eyebrow">Frame 06 — Double Exposure</div>
-    <h2>Kiến trúc lai: CNN on-device + LLM text-only</h2>
-    <p class="lede">Ý tưởng bổ sung: thay vì luôn gửi ảnh cho một vision model tốn phí, chạy một CNN nhẹ ngay trên máy để nhận diện object/scene thành tags, rồi chỉ gửi <em>text</em> đó cho LLM sinh nội dung. Ảnh gốc vẫn được lưu trữ đầy đủ để làm memory anchor cho Review — chỉ không bị gửi ra ngoài cho bước sinh bài học ở free tier.</p>
+    <h2>Hai giai đoạn: Vision-only trước, CNN tối ưu chi phí sau</h2>
+    <p class="lede">Thay vì xây song song 2 tier ngay từ đầu, đi tuần tự: build bản đơn giản nhất để validate sản phẩm trước, đo chi phí/chất lượng thật, rồi mới quyết định đầu tư vào CNN dựa trên số liệu — tránh tối ưu sớm khi chưa biết token thực sự tốn bao nhiêu.</p>
     <div class="roadmap">
       <div class="col">
-        <h3>Free — Local Lens</h3>
+        <h3>Giai đoạn 1 — Vision-only</h3>
         <ul>
-          <li>Chụp ảnh → CNN on-device (Google ML Kit / TFLite) gắn nhãn: "coffee cup 0.92", "laptop 0.81"…</li>
-          <li>Gửi tags (text) + emotion + CEFR lên backend — không gửi ảnh cho AI.</li>
-          <li>LLM text-only dựng scene/story/quiz từ tags — chi phí thấp hơn nhiều so với gọi vision.</li>
-          <li>Ảnh vẫn upload &amp; lưu trữ riêng để dùng cho Review sau này.</li>
+          <li>Chụp ảnh → upload → gửi thẳng cho GPT-4o (multimodal vision).</li>
+          <li>LLM vision tự phân tích scene + sinh vocabulary/story/dialogue/quiz — không CNN, không bước trung gian.</li>
+          <li>Ưu tiên tốc độ build và validate sản phẩm với người dùng thật.</li>
+          <li>Vẫn tách sẵn <code>ISceneTagger</code> / <code>ILessonGenerator</code> dù chỉ có 1 implementation (CloudVision), để giai đoạn 2 cắm CNN vào không phải sửa business logic.</li>
         </ul>
       </div>
       <div class="col">
-        <h3>Premium — Cloud Vision</h3>
+        <h3>Giai đoạn 2 — CNN + Report</h3>
         <ul>
-          <li>Chụp ảnh → upload → gửi thẳng cho OpenAI multimodal vision model.</li>
-          <li>Mô tả cảnh phong phú, chính xác hơn (không giới hạn bởi tập nhãn cố định).</li>
-          <li>Dùng làm fallback khi CNN local confidence thấp, hoặc cho user trả phí.</li>
-          <li>Cùng chung <code>ILessonGenerator</code> phía sau — business logic không đổi.</li>
+          <li>Thêm CNN on-device (Google ML Kit / TFLite) gắn tag ảnh, gửi text tag thay vì ảnh cho LLM.</li>
+          <li>Chạy song song trên cùng bộ ảnh test: đo token/cost, latency, độ chính xác vocabulary giữa 2 pipeline.</li>
+          <li>Xuất <strong>report đánh giá</strong> so sánh Vision-only vs CNN-hybrid (chi phí, chất lượng, trade-off).</li>
+          <li>Dựa trên report để quyết định: bật CNN mặc định cho tier nào, ngưỡng fallback về Cloud Vision khi confidence thấp.</li>
         </ul>
       </div>
     </div>
-    <div class="rule-note">TRADE-OFF — Free tier mô tả cảnh kém phong phú hơn (giới hạn theo tập nhãn CNN) nhưng rẻ gần như miễn phí và tăng privacy thật sự: ảnh nhạy cảm không rời máy ở bước generate. Cần một <code>ISceneTagger</code> (on-device) tách biệt <code>ILessonGenerator</code> (cloud) để hai đường này cắm/rút được mà không sửa business logic.</div>
+    <div class="rule-note">TRADE-OFF — CNN local giới hạn theo tập nhãn cố định (kém phong phú hơn vision LLM) nhưng gần như miễn phí và tăng privacy (ảnh không rời máy ở bước generate). Report ở giai đoạn 2 là căn cứ số liệu để quyết định có đáng đánh đổi hay không, thay vì đoán.</div>
   </section>
 
   <section class="frame">
@@ -594,33 +594,38 @@
     <h2>Lộ trình &amp; ưu tiên trước khi code</h2>
     <div class="roadmap">
       <div class="col">
-        <h3>MVP bắt buộc</h3>
+        <h3>Giai đoạn 1 — MVP Vision-only</h3>
         <ul>
           <li>Android trước (Flutter build APK), iOS sau khi validate</li>
           <li>Home → Camera → Emotion Picker → Lesson → Review</li>
-          <li>CNN on-device gắn tag ảnh (free tier) + fallback Cloud Vision</li>
-          <li>6 emotion cố định + LLM text-only sinh structured JSON</li>
-          <li>Vocabulary, context, story, dialogue, quiz</li>
+          <li>Gửi ảnh thẳng cho GPT-4o vision — không CNN, không bước trung gian</li>
+          <li>Vocabulary, context, story, dialogue, quiz từ structured JSON</li>
           <li>TTS cho story/dialogue, cache theo hash</li>
-          <li>PostgreSQL + object storage, history, review cơ bản</li>
-          <li>Form khảo sát ngắn đi kèm APK cho người test</li>
+          <li>PostgreSQL + object storage, history, review cơ bản (1-3-7-14 ngày)</li>
+          <li>Form khảo sát ngắn đi kèm APK, phát cho người quen dùng thử</li>
         </ul>
       </div>
       <div class="col">
-        <h3>Phase 2</h3>
+        <h3>Giai đoạn 2 — CNN + Report</h3>
+        <ul>
+          <li>Thêm <code>ISceneTagger</code> on-device (ML Kit/TFLite)</li>
+          <li>Đo song song token/cost/latency/độ chính xác so với Giai đoạn 1</li>
+          <li>Xuất report đánh giá Vision-only vs CNN-hybrid</li>
+          <li>Quyết định tier mặc định dựa trên report, không đoán trước</li>
+        </ul>
+        <h3 style="margin-top:18px">Mở rộng sau (backlog)</h3>
         <ul>
           <li>Speaking: recording, transcription, feedback</li>
-          <li>Realtime role-play conversation từ scene</li>
-          <li>Tap-to-identify object / vùng ảnh</li>
+          <li>Roleplay conversation, tap-to-identify vùng ảnh</li>
           <li>Adaptive CEFR + tránh lặp từ đã master</li>
-          <li>FSRS/SM-2 review engine, offline cache</li>
+          <li>FSRS/SM-2, offline review cache</li>
           <li>Kiểm duyệt ảnh đầy đủ + monetization thật</li>
         </ul>
       </div>
     </div>
     <div class="priority-strip">
-      <div class="priority"><b>Ưu tiên 1</b>Chạy được luồng Camera → Emotion → Lesson trên Android càng sớm càng tốt.</div>
-      <div class="priority"><b>Ưu tiên 2</b>Tách <code>ISceneTagger</code> (on-device) khỏi <code>ILessonGenerator</code> (cloud) ngay từ đầu.</div>
+      <div class="priority"><b>Ưu tiên 1</b>Chạy được luồng Camera → Emotion → Lesson trên Android bằng GPT-4o vision, không CNN.</div>
+      <div class="priority"><b>Ưu tiên 2</b>Tách <code>ISceneTagger</code>/<code>ILessonGenerator</code> ngay từ đầu dù giai đoạn 1 chỉ có 1 implementation.</div>
       <div class="priority"><b>Ưu tiên 3</b>Chuẩn bị sẵn form khảo sát ngắn để phát cùng APK.</div>
     </div>
   </section>
@@ -631,6 +636,6 @@
     <div class="sprocket"></div><div class="sprocket"></div><div class="sprocket"></div>
   </div>
   <p class="dod">"Một người dùng có thể chụp ảnh, chọn cảm xúc, nhận lesson có story + audio, hoàn thành quiz, đóng app, mở lại và sau đó ôn đúng từ bằng chính ảnh cũ." — Definition of Done cho ý tưởng cốt lõi.</p>
-  <footer>SnapLingo Project Review · v1.1 revised · dựa trên SnapLingo_Project_Specification_AI_Code_Prompting.docx (v1.0, 11.09.2026) + phản hồi validation/cost/moderation</footer>
+  <footer>SnapLingo Project Review · v1.2 · dựa trên SnapLingo_Project_Specification_AI_Code_Prompting.docx (v1.0, 11.09.2026) + phản hồi validation/cost/moderation + lộ trình 2 giai đoạn Vision-only → CNN</footer>
 
 </div>

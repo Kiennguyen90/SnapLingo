@@ -32,18 +32,26 @@ tiên để khảo sát người dùng trước khi triển khai production.
   storage cho ảnh/audio.
 - **AI**: OpenAI multimodal model đứng sau abstraction `ILessonGenerator`
   (model lấy từ config, không hard-code).
-- **Kiến trúc lai giảm chi phí**: CNN nhẹ chạy on-device (Google ML Kit /
-  TFLite) gắn tag ảnh ở free tier, chỉ gửi text tag cho LLM thay vì gửi ảnh
-  cho vision model; Cloud Vision đầy đủ dùng làm fallback/tier cao cấp — cả
-  hai đứng sau cùng `ILessonGenerator`.
 - **Bảo mật**: API key OpenAI chỉ ở backend, strip EXIF/GPS mặc định, signed
   URL có thời hạn cho ảnh/audio, rate limit theo user/device.
 
-## Roadmap ngắn hạn
+## Roadmap: 2 giai đoạn
 
+**Giai đoạn 1 — MVP Vision-only (không CNN)**
 1. Build Android APK cho luồng Camera → Emotion Picker → Lesson → Review.
-2. Tách `ISceneTagger` (on-device) khỏi `ILessonGenerator` (cloud) ngay từ đầu.
-3. Phát APK kèm form khảo sát ngắn cho người dùng thử nghiệm nội bộ.
-4. Dựa trên phản hồi thực tế để làm phân tích cạnh tranh và mô hình kiếm tiền.
+2. Gửi ảnh thẳng cho GPT-4o (vision) sinh scene/vocabulary/story/dialogue/quiz.
+3. Tách sẵn `ISceneTagger`/`ILessonGenerator` dù chỉ có 1 implementation
+   (CloudVision), để giai đoạn 2 cắm CNN vào không phải sửa business logic.
+4. Phát APK kèm form khảo sát ngắn cho người dùng thử nghiệm nội bộ.
 
-Chi tiết đầy đủ xem trong hai tài liệu ở trên.
+**Giai đoạn 2 — CNN on-device + Report đánh giá**
+1. Thêm CNN nhẹ chạy on-device (Google ML Kit / TFLite) gắn tag ảnh, gửi
+   text tag cho LLM thay vì gửi ảnh — giảm token/cost.
+2. Đo song song trên cùng bộ ảnh test: token/cost, latency, độ chính xác
+   vocabulary giữa pipeline Vision-only (giai đoạn 1) và CNN-hybrid.
+3. Xuất report đánh giá so sánh 2 pipeline, dùng số liệu đó để quyết định
+   tier mặc định và ngưỡng fallback về Cloud Vision.
+
+Sau khi có phản hồi thực tế từ 2 giai đoạn trên mới làm phân tích cạnh tranh
+và mô hình kiếm tiền chính thức. Chi tiết đầy đủ xem trong hai tài liệu ở
+trên.
