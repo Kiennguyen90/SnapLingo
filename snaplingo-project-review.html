@@ -1,0 +1,636 @@
+<title>SnapLingo Review</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,500;0,9..144,600;0,9..144,700;1,9..144,500;1,9..144,600&family=Source+Serif+4:ital,wght@0,400;0,600;0,700;1,400&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
+
+  :root{
+    --surface: #eef0ee;
+    --card: #ffffff;
+    --ink: #1a1d1b;
+    --ink-soft: #53584f;
+    --line: #c6cac2;
+    --line-strong: #9aa094;
+    --accent: #7a3220;
+    --accent-soft: #f0e0d4;
+    --mood-happy: #c99a34;
+    --mood-calm: #5e8a79;
+    --mood-curious: #3e6e96;
+    --mood-excited: #c8562e;
+    --mood-tired: #8b8579;
+    --mood-sad: #6b7690;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --surface: #14120f;
+      --card: #1d1a16;
+      --ink: #ede7dc;
+      --ink-soft: #b9afa0;
+      --line: #3a342c;
+      --line-strong: #524a3d;
+      --accent: #d98a52;
+      --accent-soft: #3a2a1c;
+      --mood-happy: #e0b152;
+      --mood-calm: #7fae9b;
+      --mood-curious: #6fa0c9;
+      --mood-excited: #dd7a54;
+      --mood-tired: #a79e8e;
+      --mood-sad: #8b96b3;
+    }
+  }
+  :root[data-theme="dark"]{
+    --surface: #14120f;
+    --card: #1d1a16;
+    --ink: #ede7dc;
+    --ink-soft: #b9afa0;
+    --line: #3a342c;
+    --line-strong: #524a3d;
+    --accent: #d98a52;
+    --accent-soft: #3a2a1c;
+    --mood-happy: #e0b152;
+    --mood-calm: #7fae9b;
+    --mood-curious: #6fa0c9;
+    --mood-excited: #dd7a54;
+    --mood-tired: #a79e8e;
+    --mood-sad: #8b96b3;
+  }
+
+  *{ box-sizing: border-box; }
+  body{
+    background: var(--surface);
+    color: var(--ink);
+    font-family: 'Source Serif 4', Georgia, serif;
+    line-height: 1.6;
+  }
+  .page{
+    max-width: 880px;
+    margin: 0 auto;
+    padding: 40px 20px 80px;
+  }
+  .eyebrow{
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11.5px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--accent);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 10px;
+  }
+  .eyebrow::after{
+    content: "";
+    height: 1px;
+    flex: 1;
+    background: var(--line-strong);
+  }
+  h1, h2, h3{
+    font-family: 'Fraunces', Georgia, serif;
+    text-wrap: balance;
+    font-weight: 600;
+    margin: 0;
+    color: var(--ink);
+  }
+  p{ margin: 0 0 12px; max-width: 65ch; }
+  .measure{ max-width: 62ch; }
+
+  /* ---- Header slide mount ---- */
+  .mount{
+    border-top: 3px double var(--line-strong);
+    border-bottom: 3px double var(--line-strong);
+    padding: 26px 0 22px;
+    margin-bottom: 44px;
+  }
+  .mount h1{
+    font-size: clamp(42px, 8vw, 64px);
+    letter-spacing: -0.01em;
+  }
+  .mount .tagline{
+    font-family: 'Fraunces', Georgia, serif;
+    font-style: italic;
+    font-weight: 500;
+    font-size: 19px;
+    color: var(--ink-soft);
+    margin-top: 6px;
+    max-width: 46ch;
+  }
+  .exif{
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11.5px;
+    letter-spacing: 0.03em;
+    color: var(--ink-soft);
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 18px;
+    margin-top: 20px;
+    padding-top: 16px;
+    border-top: 1px solid var(--line);
+  }
+  .exif b{ color: var(--ink); font-weight: 600; }
+  .thesis{
+    margin-top: 20px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 13.5px;
+    line-height: 1.7;
+    color: var(--ink);
+    background: var(--accent-soft);
+    border-left: 3px solid var(--accent);
+    padding: 12px 16px;
+    display: inline-block;
+  }
+
+  /* ---- Frame sections ---- */
+  .frame{
+    position: relative;
+    border: 1px solid var(--line);
+    background: var(--card);
+    border-radius: 2px;
+    padding: 30px clamp(18px, 4vw, 34px) 32px;
+    margin-bottom: 34px;
+  }
+  .frame-tab{
+    position: absolute;
+    top: -1px;
+    right: -1px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10.5px;
+    letter-spacing: 0.08em;
+    color: var(--ink-soft);
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-top: none;
+    border-right: none;
+    padding: 3px 9px;
+  }
+  .frame h2{ font-size: 26px; margin-bottom: 14px; }
+  .lede{ color: var(--ink-soft); font-size: 15px; }
+
+  /* value props */
+  .props{
+    list-style: none;
+    margin: 18px 0 0;
+    padding: 0;
+    display: grid;
+    gap: 10px;
+  }
+  .props li{
+    padding-left: 18px;
+    border-left: 2px solid var(--line-strong);
+    font-size: 15.5px;
+  }
+
+  /* six exposures grid */
+  .contact-grid{
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 14px;
+    margin-top: 20px;
+  }
+  @media (max-width: 620px){ .contact-grid{ grid-template-columns: repeat(2, 1fr); } }
+  .mood-frame{
+    border: 1px solid var(--line);
+    padding: 12px 13px 14px;
+    background: var(--surface);
+  }
+  .mood-bar{
+    height: 5px;
+    margin: -12px -13px 10px;
+    background: var(--mood-color);
+  }
+  .mood-frame .id{
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--mood-color);
+    font-weight: 600;
+  }
+  .mood-frame h3{
+    font-family: 'Fraunces', Georgia, serif;
+    font-size: 18px;
+    margin: 3px 0 8px;
+  }
+  .mood-frame .row{
+    font-size: 12.5px;
+    color: var(--ink-soft);
+    margin-bottom: 5px;
+  }
+  .mood-frame .row b{
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 9.5px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--ink);
+    display: block;
+    margin-bottom: 1px;
+  }
+  .rule-note{
+    margin-top: 18px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12px;
+    color: var(--ink-soft);
+    padding-top: 12px;
+    border-top: 1px dashed var(--line);
+  }
+
+  /* strengths list */
+  .focus-list{ display: grid; gap: 16px; margin-top: 18px; }
+  .focus-item{
+    display: grid;
+    grid-template-columns: 34px 1fr;
+    gap: 14px;
+    align-items: baseline;
+  }
+  .focus-item .num{
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12px;
+    color: var(--accent);
+    font-weight: 600;
+  }
+  .focus-item strong{ font-weight: 700; }
+  .focus-item p{ margin: 4px 0 0; font-size: 15px; color: var(--ink-soft); }
+
+  /* gap cards */
+  .gap-list{ display: grid; gap: 16px; margin-top: 20px; }
+  .gap-card{
+    border: 1px solid var(--line);
+    border-left: 3px solid var(--line-strong);
+    padding: 16px 18px;
+  }
+  .gap-card .gtag{
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10.5px;
+    letter-spacing: 0.06em;
+    color: var(--ink-soft);
+  }
+  .gap-card h3{ font-size: 16.5px; margin: 4px 0 8px; }
+  .gap-card .problem{ font-size: 14.5px; margin-bottom: 10px; }
+  .gap-card .fix{
+    font-size: 14.5px;
+    background: var(--accent-soft);
+    border-left: 3px solid var(--accent);
+    padding: 8px 12px;
+    margin: 0;
+  }
+  .gap-card .fix b{
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10.5px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--accent);
+    display: block;
+    margin-bottom: 3px;
+  }
+
+  /* roadmap columns */
+  .roadmap{
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 22px;
+    margin-top: 18px;
+  }
+  @media (max-width: 560px){ .roadmap{ grid-template-columns: 1fr; } }
+  .roadmap .col h3{
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+    font-weight: 600;
+    margin-bottom: 10px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--line);
+  }
+  .roadmap ul{ margin: 0; padding-left: 18px; font-size: 14.5px; }
+  .roadmap li{ margin-bottom: 7px; }
+
+  .priority-strip{
+    margin-top: 22px;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+  }
+  @media (max-width: 620px){ .priority-strip{ grid-template-columns: 1fr; } }
+  .priority{
+    background: var(--accent-soft);
+    border: 1px solid var(--accent);
+    padding: 12px 14px;
+    font-size: 13.5px;
+  }
+  .priority b{
+    display: block;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 5px;
+  }
+
+  /* footer */
+  .leader{
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 44px 0 18px;
+  }
+  .sprocket{
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    border: 1.5px solid var(--line-strong);
+    flex-shrink: 0;
+  }
+  .leader-line{ flex: 1; height: 1px; background: var(--line-strong); }
+  .dod{
+    font-family: 'Fraunces', Georgia, serif;
+    font-style: italic;
+    font-size: 17px;
+    color: var(--ink-soft);
+    max-width: 60ch;
+  }
+  footer{
+    margin-top: 26px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    color: var(--ink-soft);
+    letter-spacing: 0.03em;
+  }
+</style>
+
+<div class="page">
+
+  <div class="mount">
+    <div class="eyebrow">Contact Sheet — Roll 01</div>
+    <h1>SnapLingo</h1>
+    <div class="tagline">Chụp một khoảnh khắc đời thường, tráng thành một bài học tiếng Anh.</div>
+    <div class="exif">
+      <span><b>DOC</b> Product Review</span>
+      <span><b>VERSION</b> 1.1 — revised after feedback</span>
+      <span><b>UPDATED</b> 11.09.2026</span>
+      <span><b>SCOPE</b> Android prototype → Production</span>
+    </div>
+    <div class="thesis">Photo&nbsp;+&nbsp;Selected&nbsp;Emotion&nbsp;+&nbsp;Learner&nbsp;Profile&nbsp;→&nbsp;AI&nbsp;Lesson&nbsp;→&nbsp;Audio&nbsp;→&nbsp;Practice&nbsp;→&nbsp;Memory&nbsp;Review</div>
+  </div>
+
+  <section class="frame">
+    <div class="frame-tab">01 / 07</div>
+    <div class="eyebrow">Frame 01 — The Shot</div>
+    <h2>Ý tưởng cốt lõi</h2>
+    <p class="lede">Ảnh cung cấp ngữ cảnh thực tế; cảm xúc — do chính người dùng chọn, không suy đoán từ khuôn mặt — điều khiển giọng điệu, độ dài và phong cách nội dung. LLM đóng vai trò content engine, TTS tạo audio để nghe và luyện nói. Bài học được lưu cùng ảnh gốc để ôn tập theo thời gian.</p>
+    <ul class="props">
+      <li>Học từ chính thế giới của người dùng, thay vì danh sách từ vựng cố định.</li>
+      <li>Một bức ảnh có thể tạo ra nhiều bài học khác nhau tùy cảm xúc và trình độ.</li>
+      <li>Kết hợp visual + auditory + touch/haptic + speaking thành trải nghiệm đa giác quan.</li>
+      <li>Ảnh cá nhân trở thành "memory anchor" — gợi nhớ từ vựng bằng ký ức thực tế.</li>
+    </ul>
+  </section>
+
+  <section class="frame">
+    <div class="frame-tab">02 / 07</div>
+    <div class="eyebrow">Frame 02 — Six Exposures</div>
+    <h2>Sáu trạng thái cảm xúc học tập</h2>
+    <p class="lede">Mỗi trạng thái là một bộ lọc điều chỉnh nhịp bài học — không phải công cụ chẩn đoán hay nhận diện cảm xúc.</p>
+    <div class="contact-grid">
+      <div class="mood-frame" style="--mood-color: var(--mood-happy)">
+        <div class="mood-bar"></div>
+        <div class="id">Happy</div>
+        <h3>Vui vẻ</h3>
+        <div class="row"><b>Điều chỉnh</b>5–7 từ, mức chuẩn CEFR</div>
+        <div class="row"><b>TTS hint</b>friendly, bright, positive</div>
+      </div>
+      <div class="mood-frame" style="--mood-color: var(--mood-calm)">
+        <div class="mood-bar"></div>
+        <div class="id">Calm</div>
+        <h3>Bình tĩnh</h3>
+        <div class="row"><b>Điều chỉnh</b>4–6 từ, quiz đơn giản</div>
+        <div class="row"><b>TTS hint</b>calm, gentle, steady</div>
+      </div>
+      <div class="mood-frame" style="--mood-color: var(--mood-curious)">
+        <div class="mood-bar"></div>
+        <div class="id">Curious</div>
+        <h3>Tò mò</h3>
+        <div class="row"><b>Điều chỉnh</b>5–8 từ, câu hỏi mở ngắn</div>
+        <div class="row"><b>TTS hint</b>curious, exploratory</div>
+      </div>
+      <div class="mood-frame" style="--mood-color: var(--mood-excited)">
+        <div class="mood-bar"></div>
+        <div class="id">Excited</div>
+        <h3>Hào hứng</h3>
+        <div class="row"><b>Điều chỉnh</b>6–8 từ, challenge cao hơn</div>
+        <div class="row"><b>TTS hint</b>energetic, lively</div>
+      </div>
+      <div class="mood-frame" style="--mood-color: var(--mood-tired)">
+        <div class="mood-bar"></div>
+        <div class="id">Tired</div>
+        <h3>Mệt</h3>
+        <div class="row"><b>Điều chỉnh</b>4–5 từ, story 2–3 câu</div>
+        <div class="row"><b>TTS hint</b>simple, low-load</div>
+      </div>
+      <div class="mood-frame" style="--mood-color: var(--mood-sad)">
+        <div class="mood-bar"></div>
+        <div class="id">Sad</div>
+        <h3>Buồn</h3>
+        <div class="row"><b>Điều chỉnh</b>4–6 từ, nội dung supportive</div>
+        <div class="row"><b>TTS hint</b>gentle, respectful</div>
+      </div>
+    </div>
+    <div class="rule-note">RULE — LLM không được "bẻ cong" sự thật của ảnh để khớp cảm xúc; cảm xúc chỉ đổi câu chuyện xoay quanh sự thật đó.</div>
+  </section>
+
+  <section class="frame">
+    <div class="frame-tab">03 / 07</div>
+    <div class="eyebrow">Frame 03 — Developing</div>
+    <h2>Nhận định chung</h2>
+    <p class="measure">Đây là một trong những bản đặc tả chi tiết và "code-ready" nhất ở giai đoạn ý tưởng — vượt xa mức mô tả sản phẩm thông thường, gần như sẵn sàng đưa cho AI coding agent triển khai theo từng phase. Vấn đề không nằm ở độ chi tiết kỹ thuật, mà ở các câu hỏi sản phẩm/kinh doanh và vài rủi ro về nội dung/an toàn chưa được trả lời.</p>
+    <p class="rule-note" style="margin-top:14px">REV 1.1 — Sau vòng phản hồi: ưu tiên validate bằng Android prototype thay vì phân tích thị trường trên giấy, và chốt kiến trúc lai CNN on-device để kiểm soát chi phí ngay từ MVP (xem Frame 06).</p>
+  </section>
+
+  <section class="frame">
+    <div class="frame-tab">04 / 07</div>
+    <div class="eyebrow">Frame 04 — In Focus</div>
+    <h2>Điểm đã làm tốt</h2>
+    <div class="focus-list">
+      <div class="focus-item">
+        <div class="num">01</div>
+        <div><strong>Core insight khác biệt thật.</strong>
+          <p>Dùng ảnh cá nhân làm "memory anchor" để ôn tập có cơ sở khoa học (context-dependent memory) — khác Duolingo/Anki ở chỗ nội dung gắn với trải nghiệm thật của người dùng.</p>
+        </div>
+      </div>
+      <div class="focus-item">
+        <div class="num">02</div>
+        <div><strong>Emotion là lựa chọn, không phải suy đoán.</strong>
+          <p>Né được rủi ro pháp lý/đạo đức về facial emotion recognition, một quyết định UX vừa an toàn vừa tôn trọng người dùng.</p>
+        </div>
+      </div>
+      <div class="focus-item">
+        <div class="num">03</div>
+        <div><strong>Kiến trúc AI-agnostic.</strong>
+          <p><code>IAIClient</code>/<code>ILessonGenerator</code>, model lấy từ config, validate JSON schema trước khi ghi DB, prompt versioning — đúng chuẩn, không khóa cứng vào một model.</p>
+        </div>
+      </div>
+      <div class="focus-item">
+        <div class="num">04</div>
+        <div><strong>Database hybrid hợp lý.</strong>
+          <p>Normalize phần cần query/progress, giữ JSONB cho nội dung AI linh hoạt — vừa dễ phát triển MVP, vừa không khóa cứng vào cấu trúc prompt hiện tại.</p>
+        </div>
+      </div>
+      <div class="focus-item">
+        <div class="num">05</div>
+        <div><strong>Bảo mật cơ bản đầy đủ.</strong>
+          <p>API key chỉ ở backend, strip EXIF/GPS, signed URL có thời hạn, rate limit, TTS cache theo hash — đủ cho một MVP nghiêm túc.</p>
+        </div>
+      </div>
+      <div class="focus-item">
+        <div class="num">06</div>
+        <div><strong>Roadmap và tiêu chí nghiệm thu rõ ràng.</strong>
+          <p>MVP vs Phase 2 tách bạch, có test matrix và acceptance criteria cụ thể — dễ verify "khi nào xong".</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="frame">
+    <div class="frame-tab">05 / 07</div>
+    <div class="eyebrow">Frame 05 — Underexposed</div>
+    <h2>Khoảng trống cần lấp &amp; giải pháp</h2>
+    <p class="lede">Những vùng thiếu sáng nhất trong đặc tả — theo mức độ ưu tiên xử lý.</p>
+    <div class="gap-list">
+
+      <div class="gap-card">
+        <div class="gtag">05.1 — VALIDATION · QUYẾT ĐỊNH</div>
+        <h3>Phân tích cạnh tranh → dời sang sau prototype</h3>
+        <p class="problem">Đây mới là một ý tưởng trên giấy — so sánh với Google Lens/Drops/LingQ/ELSA lúc này dễ lệch khỏi phản hồi thực tế.</p>
+        <p class="fix"><b>Quyết định</b>Build nhanh một bản Android APK, phát cho người quen dùng thử và khảo sát trực tiếp. Competitive analysis làm sau, dựa trên dữ liệu định tính thu được từ khảo sát này.</p>
+      </div>
+
+      <div class="gap-card">
+        <div class="gtag">05.2 — CHI PHÍ · QUYẾT ĐỊNH</div>
+        <h3>Chi phí AI mỗi lesson</h3>
+        <p class="problem">Vision + LLM + TTS tốn phí mỗi lần sinh bài học — miễn phí toàn bộ ở giai đoạn đầu sẽ khó bền nếu không kiểm soát chi phí gốc.</p>
+        <p class="fix"><b>Quyết định</b>Miễn phí trong giai đoạn thử nghiệm; kiểm soát chi phí bằng kiến trúc lai CNN on-device + LLM text-only — xem chi tiết ở Frame 06.</p>
+      </div>
+
+      <div class="gap-card">
+        <div class="gtag">05.3 — AN TOÀN NỘI DUNG · QUYẾT ĐỊNH</div>
+        <h3>Kiểm duyệt ảnh, tách khỏi tính năng "bất ngờ"</h3>
+        <p class="problem">Cần phân biệt rõ hai việc khác nhau: an toàn nội dung ảnh, và mong muốn tạo sự bất ngờ/ngẫu nhiên cho người học.</p>
+        <p class="fix"><b>Quyết định</b>Giữ kiểm duyệt an toàn ở mức tối thiểu cho nhóm test nội bộ (rule "không suy đoán thuộc tính nhạy cảm" trong prompt vẫn bắt buộc); bổ sung một tính năng <em>riêng</em> — ngẫu nhiên hoá story/quiz mỗi lần regenerate để tạo bất ngờ. Bật kiểm duyệt ảnh đầy đủ (NSFW/người lạ) trước khi phát hành ngoài nhóm quen biết.</p>
+      </div>
+
+      <div class="gap-card">
+        <div class="gtag">05.4 — DỰ PHÒNG · QUYẾT ĐỊNH</div>
+        <h3>"Sad" và ranh giới sức khỏe tinh thần</h3>
+        <p class="problem">Chưa cần xử lý ở MVP, nhưng nên chừa chỗ mở rộng để không phải sửa kiến trúc về sau.</p>
+        <p class="fix"><b>Quyết định</b>Chưa triển khai logic gì; định nghĩa sẵn một extension point rỗng trong <code>IEmotionPolicy</code> (ghi chú rõ "reserved for future wellbeing hook") để cắm thêm về sau nếu cần.</p>
+      </div>
+
+      <div class="gap-card">
+        <div class="gtag">05.5 — GIÁ TRỊ CỐT LÕI</div>
+        <h3>Tránh dạy lại từ đã thuộc bị đẩy sang Phase 2</h3>
+        <p class="problem">Nếu không, người dùng chụp nhiều ảnh cà phê sẽ học lại từ "cup" nhiều lần — trải nghiệm học tệ ngay từ MVP.</p>
+        <p class="fix"><b>Fix</b>Đưa một bản đơn giản vào MVP: loại từ đã ở mức "mastered" khỏi prompt, không cần chờ Phase 2.</p>
+      </div>
+
+      <div class="gap-card">
+        <div class="gtag">05.6 — MỞ RỘNG</div>
+        <h3>Schema hard-code tiếng Việt</h3>
+        <p class="problem">Trường <code>meaningVi</code> giới hạn khả năng mở rộng sang người học nói ngôn ngữ khác, dù <code>nativeLanguage</code> được thiết kế là tùy chọn.</p>
+        <p class="fix"><b>Fix</b>Đổi thành <code>meaningNative</code> (generic) kèm mã ngôn ngữ, thay vì cột riêng cho tiếng Việt.</p>
+      </div>
+
+      <div class="gap-card">
+        <div class="gtag">05.7 — UX</div>
+        <h3>Không có offline cho Review</h3>
+        <p class="problem">Review vốn không cần gọi AI, nhưng vẫn phụ thuộc mạng — điểm yếu rõ ở thị trường mạng yếu/gián đoạn.</p>
+        <p class="fix"><b>Fix</b>Cache ảnh + audio đã tải cho phần Review, đưa sớm hơn thay vì để nguyên ở Phase 2.</p>
+      </div>
+
+      <div class="gap-card">
+        <div class="gtag">05.8 — THIẾT KẾ</div>
+        <h3>Chưa có wireframe UI thật</h3>
+        <p class="problem">Danh sách màn hình chỉ mô tả mục đích, chưa có mockup — dễ phát sinh rework khi code UI thật.</p>
+        <p class="fix"><b>Fix</b>Wireframe Figma cho luồng lõi Camera → Emotion Picker → Lesson trước khi bắt đầu Phase 6.</p>
+      </div>
+
+      <div class="gap-card">
+        <div class="gtag">05.9 — CHẤT LƯỢNG AI</div>
+        <h3>Chưa rõ cách chọn từ khi ảnh có nhiều object</h3>
+        <p class="problem">Ảnh phức tạp (vd. bàn ăn nhiều món) có thể ra kết quả không nhất quán giữa các lần chụp cùng một ảnh.</p>
+        <p class="fix"><b>Fix</b>Thêm tiêu chí ưu tiên trong prompt (object nổi bật/trung tâm); cân nhắc cho người dùng tap chọn vùng ảnh muốn học.</p>
+      </div>
+
+    </div>
+  </section>
+
+  <section class="frame">
+    <div class="frame-tab">06 / 07</div>
+    <div class="eyebrow">Frame 06 — Double Exposure</div>
+    <h2>Kiến trúc lai: CNN on-device + LLM text-only</h2>
+    <p class="lede">Ý tưởng bổ sung: thay vì luôn gửi ảnh cho một vision model tốn phí, chạy một CNN nhẹ ngay trên máy để nhận diện object/scene thành tags, rồi chỉ gửi <em>text</em> đó cho LLM sinh nội dung. Ảnh gốc vẫn được lưu trữ đầy đủ để làm memory anchor cho Review — chỉ không bị gửi ra ngoài cho bước sinh bài học ở free tier.</p>
+    <div class="roadmap">
+      <div class="col">
+        <h3>Free — Local Lens</h3>
+        <ul>
+          <li>Chụp ảnh → CNN on-device (Google ML Kit / TFLite) gắn nhãn: "coffee cup 0.92", "laptop 0.81"…</li>
+          <li>Gửi tags (text) + emotion + CEFR lên backend — không gửi ảnh cho AI.</li>
+          <li>LLM text-only dựng scene/story/quiz từ tags — chi phí thấp hơn nhiều so với gọi vision.</li>
+          <li>Ảnh vẫn upload &amp; lưu trữ riêng để dùng cho Review sau này.</li>
+        </ul>
+      </div>
+      <div class="col">
+        <h3>Premium — Cloud Vision</h3>
+        <ul>
+          <li>Chụp ảnh → upload → gửi thẳng cho OpenAI multimodal vision model.</li>
+          <li>Mô tả cảnh phong phú, chính xác hơn (không giới hạn bởi tập nhãn cố định).</li>
+          <li>Dùng làm fallback khi CNN local confidence thấp, hoặc cho user trả phí.</li>
+          <li>Cùng chung <code>ILessonGenerator</code> phía sau — business logic không đổi.</li>
+        </ul>
+      </div>
+    </div>
+    <div class="rule-note">TRADE-OFF — Free tier mô tả cảnh kém phong phú hơn (giới hạn theo tập nhãn CNN) nhưng rẻ gần như miễn phí và tăng privacy thật sự: ảnh nhạy cảm không rời máy ở bước generate. Cần một <code>ISceneTagger</code> (on-device) tách biệt <code>ILessonGenerator</code> (cloud) để hai đường này cắm/rút được mà không sửa business logic.</div>
+  </section>
+
+  <section class="frame">
+    <div class="frame-tab">07 / 07</div>
+    <div class="eyebrow">Frame 07 — Roll Sequence</div>
+    <h2>Lộ trình &amp; ưu tiên trước khi code</h2>
+    <div class="roadmap">
+      <div class="col">
+        <h3>MVP bắt buộc</h3>
+        <ul>
+          <li>Android trước (Flutter build APK), iOS sau khi validate</li>
+          <li>Home → Camera → Emotion Picker → Lesson → Review</li>
+          <li>CNN on-device gắn tag ảnh (free tier) + fallback Cloud Vision</li>
+          <li>6 emotion cố định + LLM text-only sinh structured JSON</li>
+          <li>Vocabulary, context, story, dialogue, quiz</li>
+          <li>TTS cho story/dialogue, cache theo hash</li>
+          <li>PostgreSQL + object storage, history, review cơ bản</li>
+          <li>Form khảo sát ngắn đi kèm APK cho người test</li>
+        </ul>
+      </div>
+      <div class="col">
+        <h3>Phase 2</h3>
+        <ul>
+          <li>Speaking: recording, transcription, feedback</li>
+          <li>Realtime role-play conversation từ scene</li>
+          <li>Tap-to-identify object / vùng ảnh</li>
+          <li>Adaptive CEFR + tránh lặp từ đã master</li>
+          <li>FSRS/SM-2 review engine, offline cache</li>
+          <li>Kiểm duyệt ảnh đầy đủ + monetization thật</li>
+        </ul>
+      </div>
+    </div>
+    <div class="priority-strip">
+      <div class="priority"><b>Ưu tiên 1</b>Chạy được luồng Camera → Emotion → Lesson trên Android càng sớm càng tốt.</div>
+      <div class="priority"><b>Ưu tiên 2</b>Tách <code>ISceneTagger</code> (on-device) khỏi <code>ILessonGenerator</code> (cloud) ngay từ đầu.</div>
+      <div class="priority"><b>Ưu tiên 3</b>Chuẩn bị sẵn form khảo sát ngắn để phát cùng APK.</div>
+    </div>
+  </section>
+
+  <div class="leader">
+    <div class="sprocket"></div><div class="sprocket"></div><div class="sprocket"></div>
+    <div class="leader-line"></div>
+    <div class="sprocket"></div><div class="sprocket"></div><div class="sprocket"></div>
+  </div>
+  <p class="dod">"Một người dùng có thể chụp ảnh, chọn cảm xúc, nhận lesson có story + audio, hoàn thành quiz, đóng app, mở lại và sau đó ôn đúng từ bằng chính ảnh cũ." — Definition of Done cho ý tưởng cốt lõi.</p>
+  <footer>SnapLingo Project Review · v1.1 revised · dựa trên SnapLingo_Project_Specification_AI_Code_Prompting.docx (v1.0, 11.09.2026) + phản hồi validation/cost/moderation</footer>
+
+</div>

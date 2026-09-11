@@ -1,0 +1,29 @@
+# Flutter / Dart
+apps/mobile/.dart_tool/
+apps/mobile/.flutter-plugins
+apps/mobile/.flutter-plugins-dependencies
+apps/mobile/build/
+apps/mobile/.pub-cache/
+apps/mobile/.pub/
+apps/mobile/android/.gradle/
+apps/mobile/android/local.properties
+apps/mobile/ios/Pods/
+apps/mobile/*.iml
+
+# .NET / ASP.NET Core
+apps/api/**/bin/
+apps/api/**/obj/
+apps/api/*.user
+
+# Secrets / env
+.env
+*.env.local
+appsettings.*.local.json
+
+# Editors / OS
+.vs/
+.vscode/
+.idea/
+*.swp
+.DS_Store
+Thumbs.db
