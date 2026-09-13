@@ -38,7 +38,9 @@ override bằng header `X-Demo-User-Id` khi cần test cách ly nhiều user).
 
 ## Chạy API local
 
-Yêu cầu: .NET 10 SDK, Docker Desktop.
+Yêu cầu: .NET 9 SDK, Docker Desktop. (Dự án hạ từ .NET 10 xuống .NET 9 để
+tương thích với Visual Studio phiên bản hiện tại — cần VS 17.16+ mới target
+được .NET 10.)
 
 Mở IDE (Visual Studio, Rider, VS Code) bằng file solution
 [`apps/api/SnapLingo.slnx`](./apps/api/SnapLingo.slnx) — gom cả 7 project

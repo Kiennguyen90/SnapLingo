@@ -6,7 +6,7 @@
             "type": "coreclr",
             "request": "launch",
             "preLaunchTask": "build",
-            "program": "${workspaceFolder}/apps/api/src/SnapLingo.Api/bin/Debug/net10.0/SnapLingo.Api.dll",
+            "program": "${workspaceFolder}/apps/api/src/SnapLingo.Api/bin/Debug/net9.0/SnapLingo.Api.dll",
             "cwd": "${workspaceFolder}/apps/api/src/SnapLingo.Api",
             "env": {
                 "ASPNETCORE_ENVIRONMENT": "Development"
