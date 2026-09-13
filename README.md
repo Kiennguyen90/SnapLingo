@@ -40,21 +40,16 @@ override bằng header `X-Demo-User-Id` khi cần test cách ly nhiều user).
 
 Yêu cầu: .NET 10 SDK, Docker Desktop.
 
-Mở cả repo (mọi project backend hiện có) bằng file solution gốc
-[`SnapLingo.sln`](./SnapLingo.sln) — dùng để build/debug/test tất cả project
-cùng lúc từ IDE (Visual Studio, Rider, VS Code + C# Dev Kit) hoặc từ dòng lệnh
-ngay tại thư mục gốc repo (`dotnet build`, `dotnet test` không cần `cd` vào
-`apps/api`). Dùng định dạng `.sln` cổ điển (không phải `.slnx`) vì `.slnx`
-chưa được mọi phiên bản C# Dev Kit trong VS Code hỗ trợ mở ổn định.
-`apps/api/SnapLingo.slnx` vẫn còn để chạy các lệnh CLI scoped theo `apps/api`
-bên dưới (tool manifest `dotnet-ef` nằm ở đó).
+Mở IDE (Visual Studio, Rider, VS Code) bằng file solution
+[`apps/api/SnapLingo.slnx`](./apps/api/SnapLingo.slnx) — gom cả 7 project
+(5 src + 2 tests). Mở đúng thư mục `SnapLingo` này làm workspace gốc
+(`File > Open Folder` → chọn thư mục chứa `.git`), **không** mở thư mục cha
+chứa các file môn học khác, kẻo run config bị lệch cấp thư mục và không
+chạy được. Trong VS Code, nhấn `F5` (hoặc Run and Debug →
+"SnapLingo.Api (Development)") sẽ build + chạy API theo cấu hình sẵn trong
+[`.vscode/launch.json`](./.vscode/launch.json).
 
-**Quan trọng khi dùng VS Code**: mở đúng thư mục `SnapLingo` này làm workspace
-(`File > Open Folder` → chọn thư mục chứa `SnapLingo.sln`/`.git`), **không**
-mở thư mục cha chứa các file môn học khác — mở nhầm thư mục cha làm solution/
-run config bị lệch 1 cấp thư mục và không chạy được. Khi mở đúng, nhấn `F5`
-(hoặc Run and Debug → "SnapLingo.Api (Development)") sẽ build + chạy API
-theo cấu hình sẵn trong [`.vscode/launch.json`](./.vscode/launch.json).
+Hoặc chạy thẳng bằng dòng lệnh, không cần mở IDE:
 
 ```bash
 # 1. Copy .env mẫu (docker compose đọc các biến này)

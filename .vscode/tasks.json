@@ -7,7 +7,7 @@
             "type": "process",
             "args": [
                 "build",
-                "${workspaceFolder}/SnapLingo.sln",
+                "${workspaceFolder}/apps/api/src/SnapLingo.Api/SnapLingo.Api.csproj",
                 "/property:GenerateFullPaths=true",
                 "/consoleloggerparameters:NoSummary"
             ],
