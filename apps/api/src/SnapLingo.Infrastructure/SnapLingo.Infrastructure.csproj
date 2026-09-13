@@ -2,6 +2,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\SnapLingo.Domain\SnapLingo.Domain.csproj" />
+    <ProjectReference Include="..\SnapLingo.Application\SnapLingo.Application.csproj" />
   </ItemGroup>
 
   <ItemGroup>
@@ -11,6 +12,10 @@
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>
     <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="10.0.3" />
+    <PackageReference Include="AspNetCore.HealthChecks.NpgSql" Version="9.0.0" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="10.0.12" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.Abstractions" Version="10.0.12" />
+    <PackageReference Include="Microsoft.Extensions.Options.ConfigurationExtensions" Version="10.0.12" />
   </ItemGroup>
 
   <PropertyGroup>

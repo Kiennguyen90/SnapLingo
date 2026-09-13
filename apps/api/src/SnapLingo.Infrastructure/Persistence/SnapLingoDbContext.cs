@@ -1,9 +1,10 @@
 using Microsoft.EntityFrameworkCore;
+using SnapLingo.Application.Abstractions;
 using SnapLingo.Domain.Entities;
 
 namespace SnapLingo.Infrastructure.Persistence;
 
-public class SnapLingoDbContext(DbContextOptions<SnapLingoDbContext> options) : DbContext(options)
+public class SnapLingoDbContext(DbContextOptions<SnapLingoDbContext> options) : DbContext(options), IAppDbContext
 {
     public DbSet<User> Users => Set<User>();
     public DbSet<Photo> Photos => Set<Photo>();

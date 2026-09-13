@@ -7,7 +7,6 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="AspNetCore.HealthChecks.NpgSql" Version="9.0.0" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.12">
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
       <PrivateAssets>all</PrivateAssets>
@@ -17,6 +16,8 @@
 
   <ItemGroup>
     <ProjectReference Include="..\SnapLingo.Infrastructure\SnapLingo.Infrastructure.csproj" />
+    <ProjectReference Include="..\SnapLingo.Application\SnapLingo.Application.csproj" />
+    <ProjectReference Include="..\SnapLingo.Contracts\SnapLingo.Contracts.csproj" />
   </ItemGroup>
 
 </Project>

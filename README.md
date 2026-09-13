@@ -11,13 +11,41 @@ repetition, dùng chính ảnh làm "memory anchor".
 
 ## Trạng thái dự án
 
-Backend API đã có khung sườn cơ bản (Phase 1: domain + database + migrations,
-chưa nối OpenAI). Chuẩn bị build bản Android prototype để khảo sát người dùng
-trước khi triển khai production.
+Backend API đã xong Phase 1–3 theo roadmap trong đặc tả: domain + database +
+migrations, upload ảnh (validate/strip EXIF/SHA-256), emotion policy, và API
+tạo/xem/liệt kê/regenerate/xóa lesson + review (spaced repetition) — tất cả
+chạy được end-to-end với **fake AI/TTS adapter** (chưa nối OpenAI thật, xem
+Phase 4/5). Chuẩn bị build bản Android prototype để khảo sát người dùng trước
+khi triển khai production.
+
+### API hiện có (`/api/v1`)
+
+| Method | Route | Ghi chú |
+| --- | --- | --- |
+| POST | `/photos` | multipart/form-data; validate MIME/magic-byte/size, strip EXIF/GPS, trả `photoId` + signed URL |
+| POST | `/lessons` | Sinh lesson từ `photoId` + `emotion` (fake AI adapter theo `EmotionPolicy`) |
+| GET | `/lessons/{id}` | Lesson đầy đủ (scene/vocabulary/story/dialogue/quiz/audio) |
+| GET | `/lessons?page=&pageSize=` | Lịch sử lesson của user |
+| POST | `/lessons/{id}/regenerate` | Cùng ảnh, emotion khác, tăng `version` |
+| POST | `/lessons/{id}/audio` | Sinh audio story/dialogue on-demand (fake TTS), cache theo hash |
+| GET | `/reviews/today` | Từ vựng đến hạn ôn, kèm ảnh gốc làm memory anchor |
+| POST | `/reviews/{vocabularyId}/answer` | Gửi `Forgot/Hard/Good/Easy`, cập nhật lịch ôn 1-3-7-14 ngày |
+| DELETE | `/lessons/{id}` | Xóa lesson (thu hồi quyền truy cập audio của lesson đó) |
+| GET | `/media/{**objectKey}` | Phục vụ ảnh/audio qua signed URL có thời hạn (không public bucket) |
+
+Chưa có auth thật: mọi request chạy dưới một demo user được seed sẵn (có thể
+override bằng header `X-Demo-User-Id` khi cần test cách ly nhiều user).
 
 ## Chạy API local
 
 Yêu cầu: .NET 10 SDK, Docker Desktop.
+
+Mở cả repo (mọi project backend hiện có) bằng file solution gốc
+[`SnapLingo.slnx`](./SnapLingo.slnx) — dùng để build/debug/test tất cả project
+cùng lúc từ IDE (Visual Studio, Rider, VS Code) hoặc từ dòng lệnh ngay tại thư
+mục gốc repo (`dotnet build`, `dotnet test` không cần `cd` vào `apps/api`).
+`apps/api/SnapLingo.slnx` vẫn còn để chạy các lệnh CLI scoped theo `apps/api`
+bên dưới (tool manifest `dotnet-ef` nằm ở đó).
 
 ```bash
 # 1. Copy .env mẫu (docker compose đọc các biến này)
@@ -39,11 +67,20 @@ dotnet run --project src/SnapLingo.Api
 - Health check: `GET /health` (kiểm tra kết nối PostgreSQL)
 - Chạy test: `dotnet test` (trong `apps/api`)
 
-Cấu trúc solution theo đúng đặc tả: `SnapLingo.Domain` (entities/enums thuần,
-không phụ thuộc EF) → `SnapLingo.Infrastructure` (EF Core DbContext,
-configurations, migrations, Npgsql) → `SnapLingo.Api` (Program.cs, health
-check, Swagger). Chưa có `SnapLingo.Application`/`SnapLingo.Contracts` — sẽ
-thêm khi có logic/DTO thật ở phase sinh lesson (tránh project rỗng).
+Cấu trúc solution theo đúng đặc tả: `SnapLingo.Domain` (entities/enums/value
+objects thuần, không phụ thuộc EF) → `SnapLingo.Application` (use-case
+services: `PhotoService`, `LessonService`, `AudioService`, `ReviewService`,
+`EmotionPolicy`, `PromptBuilder`, và các interface `ILessonGenerator`/
+`ITextToSpeechService`/`IObjectStorage` mà Infrastructure implement) →
+`SnapLingo.Infrastructure` (EF Core DbContext, configurations, migrations,
+Npgsql, local object storage, fake AI/TTS adapter) → `SnapLingo.Contracts`
+(Request/Response DTO cho API) → `SnapLingo.Api` (minimal API endpoints,
+exception handling, Swagger, health check).
+
+`ILessonGenerator`/`ITextToSpeechService` hiện trỏ vào `FakeLessonGenerator`/
+`FakeTextToSpeechService` (Phase 3) — deterministic, không gọi OpenAI. Phase 4
+sẽ thay bằng adapter OpenAI thật đứng sau đúng interface này, không phải sửa
+`LessonService`/endpoints.
 
 ## Tài liệu trong repo
 

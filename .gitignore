@@ -15,6 +15,9 @@ apps/api/**/bin/
 apps/api/**/obj/
 apps/api/*.user
 
+# Local object storage (dev IObjectStorage implementation) — never commit uploaded media.
+apps/api/**/var/storage/
+
 # Secrets / env
 .env
 *.env.local

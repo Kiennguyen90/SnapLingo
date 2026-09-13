@@ -1,16 +1,28 @@
-using Microsoft.EntityFrameworkCore;
+using System.Text.Json.Serialization;
+using SnapLingo.Api.CurrentUser;
+using SnapLingo.Api.Endpoints;
+using SnapLingo.Api.Middleware;
+using SnapLingo.Application;
+using SnapLingo.Application.Abstractions;
+using SnapLingo.Infrastructure;
 using SnapLingo.Infrastructure.Persistence;
 
 var builder = WebApplication.CreateBuilder(args);
 
-var connectionString = builder.Configuration.GetConnectionString("Default")
-    ?? throw new InvalidOperationException("Missing ConnectionStrings:Default configuration.");
+builder.Services.AddInfrastructure(builder.Configuration);
+builder.Services.AddApplication();
 
-builder.Services.AddDbContext<SnapLingoDbContext>(options =>
-    options.UseNpgsql(connectionString));
+builder.Services.AddHttpContextAccessor();
+builder.Services.AddScoped<ICurrentUserService, DevCurrentUserService>();
 
-builder.Services.AddHealthChecks()
-    .AddNpgSql(connectionString, name: "postgres");
+builder.Services.AddExceptionHandler<AppExceptionHandler>();
+builder.Services.AddProblemDetails();
+
+builder.Services.ConfigureHttpJsonOptions(options =>
+{
+    options.SerializerOptions.PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase;
+    options.SerializerOptions.Converters.Add(new JsonStringEnumConverter(System.Text.Json.JsonNamingPolicy.CamelCase));
+});
 
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(options =>
@@ -19,11 +31,13 @@ builder.Services.AddSwaggerGen(options =>
     {
         Title = "SnapLingo API",
         Version = "v1",
-        Description = "Phase 1: domain, database and health check. No AI integration yet."
+        Description = "Photos, lesson generation (fake AI adapter) and spaced-repetition review. No real OpenAI integration yet."
     });
 });
 
 var app = builder.Build();
+
+app.UseExceptionHandler();
 
 app.UseSwagger();
 app.UseSwaggerUI(options =>
@@ -34,5 +48,16 @@ app.UseSwaggerUI(options =>
 app.MapHealthChecks("/health");
 
 app.MapGet("/", () => Results.Ok(new { service = "SnapLingo API", status = "running" }));
+
+app.MapPhotosEndpoints();
+app.MapLessonsEndpoints();
+app.MapReviewsEndpoints();
+app.MapMediaEndpoints();
+
+using (var scope = app.Services.CreateScope())
+{
+    var db = scope.ServiceProvider.GetRequiredService<SnapLingoDbContext>();
+    await DbSeeder.SeedAsync(db);
+}
 
 app.Run();
