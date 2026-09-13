@@ -17,8 +17,16 @@ public static class DependencyInjection
 {
     public static IServiceCollection AddInfrastructure(this IServiceCollection services, IConfiguration configuration)
     {
-        var connectionString = configuration.GetConnectionString("Default")
-            ?? throw new InvalidOperationException("Missing ConnectionStrings:Default configuration.");
+        var connectionString = configuration.GetConnectionString("Default");
+        if (string.IsNullOrWhiteSpace(connectionString))
+        {
+            // An empty (not just missing) value reaches here too — e.g. appsettings.json's
+            // default is "" and ASPNETCORE_ENVIRONMENT wasn't set to Development, so the
+            // appsettings.Development.json overlay never applied. Fail with a clear message
+            // instead of the cryptic ArgumentNullException that AddNpgSql's Guard.ThrowIfNull
+            // throws for an empty string ("Value cannot be null" even though it wasn't null).
+            throw new InvalidOperationException("Missing ConnectionStrings:Default configuration.");
+        }
 
         services.AddDbContext<SnapLingoDbContext>(options => options.UseNpgsql(connectionString));
         services.AddScoped<IAppDbContext>(sp => sp.GetRequiredService<SnapLingoDbContext>());
