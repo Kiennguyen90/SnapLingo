@@ -41,9 +41,11 @@ override bằng header `X-Demo-User-Id` khi cần test cách ly nhiều user).
 Yêu cầu: .NET 10 SDK, Docker Desktop.
 
 Mở cả repo (mọi project backend hiện có) bằng file solution gốc
-[`SnapLingo.slnx`](./SnapLingo.slnx) — dùng để build/debug/test tất cả project
-cùng lúc từ IDE (Visual Studio, Rider, VS Code) hoặc từ dòng lệnh ngay tại thư
-mục gốc repo (`dotnet build`, `dotnet test` không cần `cd` vào `apps/api`).
+[`SnapLingo.sln`](./SnapLingo.sln) — dùng để build/debug/test tất cả project
+cùng lúc từ IDE (Visual Studio, Rider, VS Code + C# Dev Kit) hoặc từ dòng lệnh
+ngay tại thư mục gốc repo (`dotnet build`, `dotnet test` không cần `cd` vào
+`apps/api`). Dùng định dạng `.sln` cổ điển (không phải `.slnx`) vì `.slnx`
+chưa được mọi phiên bản C# Dev Kit trong VS Code hỗ trợ mở ổn định.
 `apps/api/SnapLingo.slnx` vẫn còn để chạy các lệnh CLI scoped theo `apps/api`
 bên dưới (tool manifest `dotnet-ef` nằm ở đó).
 
