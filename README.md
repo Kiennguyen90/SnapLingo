@@ -49,6 +49,13 @@ chưa được mọi phiên bản C# Dev Kit trong VS Code hỗ trợ mở ổn 
 `apps/api/SnapLingo.slnx` vẫn còn để chạy các lệnh CLI scoped theo `apps/api`
 bên dưới (tool manifest `dotnet-ef` nằm ở đó).
 
+**Quan trọng khi dùng VS Code**: mở đúng thư mục `SnapLingo` này làm workspace
+(`File > Open Folder` → chọn thư mục chứa `SnapLingo.sln`/`.git`), **không**
+mở thư mục cha chứa các file môn học khác — mở nhầm thư mục cha làm solution/
+run config bị lệch 1 cấp thư mục và không chạy được. Khi mở đúng, nhấn `F5`
+(hoặc Run and Debug → "SnapLingo.Api (Development)") sẽ build + chạy API
+theo cấu hình sẵn trong [`.vscode/launch.json`](./.vscode/launch.json).
+
 ```bash
 # 1. Copy .env mẫu (docker compose đọc các biến này)
 cp .env.example .env

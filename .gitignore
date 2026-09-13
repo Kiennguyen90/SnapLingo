@@ -13,7 +13,7 @@ apps/mobile/*.iml
 # .NET / ASP.NET Core
 apps/api/**/bin/
 apps/api/**/obj/
-apps/api/*.user
+apps/api/**/*.user
 
 # Local object storage (dev IObjectStorage implementation) — never commit uploaded media.
 apps/api/**/var/storage/
@@ -25,7 +25,9 @@ appsettings.*.local.json
 
 # Editors / OS
 .vs/
-.vscode/
+.vscode/*
+!.vscode/launch.json
+!.vscode/tasks.json
 .idea/
 *.swp
 .DS_Store
