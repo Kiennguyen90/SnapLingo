@@ -9,7 +9,7 @@ public static class PhotosEndpoints
 {
     public static IEndpointRouteBuilder MapPhotosEndpoints(this IEndpointRouteBuilder app)
     {
-        var group = app.MapGroup("/api/v1/photos").WithTags("Photos");
+        var group = app.MapGroup("/api/v1/photos").WithTags("Photos").RequireAuthorization();
 
         // multipart/form-data, not JSON: FR-01 / spec section 18.2.
         group.MapPost("/", async (

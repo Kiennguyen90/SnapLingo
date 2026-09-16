@@ -13,7 +13,7 @@ public static class LessonsEndpoints
 {
     public static IEndpointRouteBuilder MapLessonsEndpoints(this IEndpointRouteBuilder app)
     {
-        var group = app.MapGroup("/api/v1/lessons").WithTags("Lessons");
+        var group = app.MapGroup("/api/v1/lessons").WithTags("Lessons").RequireAuthorization();
 
         group.MapPost("/", async (
             CreateLessonRequest request,

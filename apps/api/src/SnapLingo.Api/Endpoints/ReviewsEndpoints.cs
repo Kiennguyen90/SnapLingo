@@ -9,7 +9,7 @@ public static class ReviewsEndpoints
 {
     public static IEndpointRouteBuilder MapReviewsEndpoints(this IEndpointRouteBuilder app)
     {
-        var group = app.MapGroup("/api/v1/reviews").WithTags("Reviews");
+        var group = app.MapGroup("/api/v1/reviews").WithTags("Reviews").RequireAuthorization();
 
         group.MapGet("/today", async (
             ReviewService reviewService,

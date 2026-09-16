@@ -24,7 +24,7 @@ public class LessonServiceTests
         var userId = Guid.NewGuid();
         var photoId = Guid.NewGuid();
 
-        db.Users.Add(new User { Id = userId, Email = $"{userId}@test.local", CefrLevel = "A2", CreatedAt = Now });
+        db.Users.Add(new User { Id = userId, Email = $"{userId}@test.local", PasswordHash = "test-hash", CefrLevel = "A2", CreatedAt = Now });
         db.Photos.Add(new Photo
         {
             Id = photoId,

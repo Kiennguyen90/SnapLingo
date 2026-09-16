@@ -4,9 +4,11 @@ using Microsoft.Extensions.DependencyInjection;
 using SnapLingo.Application.Abstractions;
 using SnapLingo.Application.Ai;
 using SnapLingo.Application.Audio;
+using SnapLingo.Application.Auth;
 using SnapLingo.Application.Media;
 using SnapLingo.Infrastructure.Ai;
 using SnapLingo.Infrastructure.Audio;
+using SnapLingo.Infrastructure.Auth;
 using SnapLingo.Infrastructure.Common;
 using SnapLingo.Infrastructure.Persistence;
 using SnapLingo.Infrastructure.Storage;
@@ -36,10 +38,12 @@ public static class DependencyInjection
         services.Configure<StorageOptions>(configuration.GetSection(StorageOptions.SectionName));
         services.Configure<PhotoOptions>(configuration.GetSection(PhotoOptions.SectionName));
         services.Configure<AudioOptions>(configuration.GetSection(AudioOptions.SectionName));
+        services.Configure<JwtOptions>(configuration.GetSection(JwtOptions.SectionName));
 
         services.AddSingleton<SignedUrlSigner>();
         services.AddSingleton<IObjectStorage, LocalObjectStorage>();
         services.AddSingleton<IDateTimeProvider, SystemDateTimeProvider>();
+        services.AddSingleton<ITokenService, JwtTokenService>();
 
         // Fake adapters until Phase 4 (OpenAI) / Phase 5 (TTS) land — same interfaces, no
         // business-logic changes required when they're swapped in.

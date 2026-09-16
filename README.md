@@ -12,29 +12,49 @@ repetition, dùng chính ảnh làm "memory anchor".
 ## Trạng thái dự án
 
 Backend API đã xong Phase 1–3 theo roadmap trong đặc tả: domain + database +
-migrations, upload ảnh (validate/strip EXIF/SHA-256), emotion policy, và API
-tạo/xem/liệt kê/regenerate/xóa lesson + review (spaced repetition) — tất cả
-chạy được end-to-end với **fake AI/TTS adapter** (chưa nối OpenAI thật, xem
-Phase 4/5). Chuẩn bị build bản Android prototype để khảo sát người dùng trước
-khi triển khai production.
+migrations, **auth thật (đăng ký/đăng nhập + JWT)**, upload ảnh
+(validate/strip EXIF/SHA-256), emotion policy, và API tạo/xem/liệt kê/
+regenerate/xóa lesson + review (spaced repetition) — tất cả chạy được
+end-to-end với **fake AI/TTS adapter** (chưa nối OpenAI thật, xem Phase 4/5).
+Chuẩn bị build bản Android prototype để khảo sát người dùng trước khi triển
+khai production.
+
+### Auth
+
+Mọi request tới `photos`/`lessons`/`reviews`/`users` đều cần JWT Bearer token
+(đăng nhập thật, không còn demo-user bypass qua header):
+
+1. `POST /api/v1/auth/register` — `{ email, password, displayName?, cefrLevel?, nativeLanguage? }` → trả `accessToken`.
+2. `POST /api/v1/auth/login` — `{ email, password }` → trả `accessToken` (hết hạn sau `Jwt:AccessTokenMinutes`, mặc định 60 phút).
+3. Gửi kèm mọi request khác: header `Authorization: Bearer <accessToken>`.
+
+Tài khoản demo được seed sẵn để test ngay không cần đăng ký:
+**`demo@snaplingo.dev` / `Demo123!`**.
+
+Trong Swagger UI (`/swagger`), bấm nút **Authorize** và dán access token vào
+để test các endpoint cần đăng nhập trực tiếp trên UI.
 
 ### API hiện có (`/api/v1`)
 
-| Method | Route | Ghi chú |
-| --- | --- | --- |
-| POST | `/photos` | multipart/form-data; validate MIME/magic-byte/size, strip EXIF/GPS, trả `photoId` + signed URL |
-| POST | `/lessons` | Sinh lesson từ `photoId` + `emotion` (fake AI adapter theo `EmotionPolicy`) |
-| GET | `/lessons/{id}` | Lesson đầy đủ (scene/vocabulary/story/dialogue/quiz/audio) |
-| GET | `/lessons?page=&pageSize=` | Lịch sử lesson của user |
-| POST | `/lessons/{id}/regenerate` | Cùng ảnh, emotion khác, tăng `version` |
-| POST | `/lessons/{id}/audio` | Sinh audio story/dialogue on-demand (fake TTS), cache theo hash |
-| GET | `/reviews/today` | Từ vựng đến hạn ôn, kèm ảnh gốc làm memory anchor |
-| POST | `/reviews/{vocabularyId}/answer` | Gửi `Forgot/Hard/Good/Easy`, cập nhật lịch ôn 1-3-7-14 ngày |
-| DELETE | `/lessons/{id}` | Xóa lesson (thu hồi quyền truy cập audio của lesson đó) |
-| GET | `/media/{**objectKey}` | Phục vụ ảnh/audio qua signed URL có thời hạn (không public bucket) |
+| Method | Route | Auth | Ghi chú |
+| --- | --- | --- | --- |
+| POST | `/auth/register` | Không | Tạo tài khoản, trả JWT ngay |
+| POST | `/auth/login` | Không | Đăng nhập, trả JWT |
+| GET | `/users/me` | Có | Thông tin profile của user đang đăng nhập |
+| PATCH | `/users/me` | Có | Cập nhật displayName/CEFR/nativeLanguage |
+| POST | `/photos` | Có | multipart/form-data; validate MIME/magic-byte/size, strip EXIF/GPS, trả `photoId` + signed URL |
+| POST | `/lessons` | Có | Sinh lesson từ `photoId` + `emotion` (fake AI adapter theo `EmotionPolicy`) |
+| GET | `/lessons/{id}` | Có | Lesson đầy đủ (scene/vocabulary/story/dialogue/quiz/audio) |
+| GET | `/lessons?page=&pageSize=` | Có | Lịch sử lesson của user đang đăng nhập |
+| POST | `/lessons/{id}/regenerate` | Có | Cùng ảnh, emotion khác, tăng `version` |
+| POST | `/lessons/{id}/audio` | Có | Sinh audio story/dialogue on-demand (fake TTS), cache theo hash |
+| GET | `/reviews/today` | Có | Từ vựng đến hạn ôn, kèm ảnh gốc làm memory anchor |
+| POST | `/reviews/{vocabularyId}/answer` | Có | Gửi `Forgot/Hard/Good/Easy`, cập nhật lịch ôn 1-3-7-14 ngày |
+| DELETE | `/lessons/{id}` | Có | Xóa lesson (thu hồi quyền truy cập audio của lesson đó) |
+| GET | `/media/{**objectKey}` | Không (signed URL) | Phục vụ ảnh/audio qua signed URL có thời hạn, không public bucket — bảo vệ bằng chữ ký HMAC + `exp` riêng, không dùng JWT |
 
-Chưa có auth thật: mọi request chạy dưới một demo user được seed sẵn (có thể
-override bằng header `X-Demo-User-Id` khi cần test cách ly nhiều user).
+Toàn bộ dữ liệu (photo/lesson/vocabulary progress) được gắn với đúng `userId`
+lấy từ JWT (`sub` claim) — mỗi user chỉ thấy dữ liệu của chính mình.
 
 ## Chạy API local
 
@@ -75,13 +95,14 @@ dotnet run --project src/SnapLingo.Api
 
 Cấu trúc solution theo đúng đặc tả: `SnapLingo.Domain` (entities/enums/value
 objects thuần, không phụ thuộc EF) → `SnapLingo.Application` (use-case
-services: `PhotoService`, `LessonService`, `AudioService`, `ReviewService`,
-`EmotionPolicy`, `PromptBuilder`, và các interface `ILessonGenerator`/
-`ITextToSpeechService`/`IObjectStorage` mà Infrastructure implement) →
-`SnapLingo.Infrastructure` (EF Core DbContext, configurations, migrations,
-Npgsql, local object storage, fake AI/TTS adapter) → `SnapLingo.Contracts`
+services: `AuthService`, `UserService`, `PhotoService`, `LessonService`,
+`AudioService`, `ReviewService`, `EmotionPolicy`, `PromptBuilder`, và các
+interface `ITokenService`/`ILessonGenerator`/`ITextToSpeechService`/
+`IObjectStorage` mà Infrastructure implement) → `SnapLingo.Infrastructure`
+(EF Core DbContext, configurations, migrations, Npgsql, local object
+storage, fake AI/TTS adapter, `JwtTokenService`) → `SnapLingo.Contracts`
 (Request/Response DTO cho API) → `SnapLingo.Api` (minimal API endpoints,
-exception handling, Swagger, health check).
+JWT bearer auth, exception handling, Swagger, health check).
 
 `ILessonGenerator`/`ITextToSpeechService` hiện trỏ vào `FakeLessonGenerator`/
 `FakeTextToSpeechService` (Phase 3) — deterministic, không gọi OpenAI. Phase 4
@@ -106,8 +127,10 @@ sẽ thay bằng adapter OpenAI thật đứng sau đúng interface này, không
   storage cho ảnh/audio.
 - **AI**: OpenAI multimodal model đứng sau abstraction `ILessonGenerator`
   (model lấy từ config, không hard-code).
-- **Bảo mật**: API key OpenAI chỉ ở backend, strip EXIF/GPS mặc định, signed
-  URL có thời hạn cho ảnh/audio, rate limit theo user/device.
+- **Bảo mật**: đăng nhập bằng JWT Bearer token (mật khẩu hash bằng
+  `PasswordHasher<User>`, không lưu plaintext); API key OpenAI chỉ ở backend;
+  strip EXIF/GPS mặc định; signed URL có thời hạn cho ảnh/audio; rate limit
+  theo user/device (chưa implement).
 
 ## Roadmap: 2 giai đoạn
 
