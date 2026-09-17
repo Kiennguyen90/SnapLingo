@@ -11,7 +11,7 @@ public sealed class CountingLessonGenerator : ILessonGenerator
 
     public string ModelName => _inner.ModelName;
 
-    public Task<GeneratedLesson> GenerateAsync(GenerateLessonInput input, CancellationToken ct)
+    public Task<GeneratedLessonResult> GenerateAsync(GenerateLessonInput input, CancellationToken ct)
     {
         CallCount++;
         return _inner.GenerateAsync(input, ct);

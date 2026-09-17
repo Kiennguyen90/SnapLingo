@@ -26,7 +26,7 @@ public sealed class FakeLessonGenerator : ILessonGenerator
         ("book", "/bʊk/", "noun", "quyển sách"),
     ];
 
-    public Task<GeneratedLesson> GenerateAsync(GenerateLessonInput input, CancellationToken ct)
+    public Task<GeneratedLessonResult> GenerateAsync(GenerateLessonInput input, CancellationToken ct)
     {
         var profile = input.EmotionProfile;
 
@@ -103,6 +103,6 @@ public sealed class FakeLessonGenerator : ILessonGenerator
                 string.Join(" ", dialogue.Select(d => d.TextEn)),
                 profile.TtsStyleHint));
 
-        return Task.FromResult(result);
+        return Task.FromResult(new GeneratedLessonResult(result, InputTokens: null, OutputTokens: null));
     }
 }

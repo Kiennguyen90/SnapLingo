@@ -184,18 +184,19 @@ public sealed class LessonService(
             cefrLevel, nativeLanguage, learningGoal, vocabularyTarget);
 
         var stopwatch = Stopwatch.StartNew();
+        GeneratedLessonResult? result = null;
         try
         {
-            var generated = await generator.GenerateAsync(input, ct);
-            ValidateGeneratedLesson(generated, profile);
+            result = await generator.GenerateAsync(input, ct);
+            ValidateGeneratedLesson(result.Lesson, profile);
             stopwatch.Stop();
 
-            await PersistContentAsync(lesson, generated, ct);
+            await PersistContentAsync(lesson, result.Lesson, ct);
 
             lesson.Status = LessonStatus.Completed;
             await db.SaveChangesAsync(ct);
 
-            await LogGenerationAsync(lesson.Id, stopwatch.Elapsed, "success", null, ct);
+            await LogGenerationAsync(lesson.Id, stopwatch.Elapsed, "success", null, result.InputTokens, result.OutputTokens, ct);
             await SeedReviewScheduleAsync(userId, lesson.Id, ct);
 
             return lesson;
@@ -210,6 +211,11 @@ public sealed class LessonService(
                 stopwatch.Elapsed,
                 "failed",
                 ex is AppValidationException ? "invalid_ai_output" : "generation_error",
+                // `result` is non-null when the AI call itself succeeded and only our own
+                // validation rejected it afterwards — those tokens were still spent, so the
+                // cost log should reflect that instead of hiding it behind a null.
+                inputTokens: result?.InputTokens,
+                outputTokens: result?.OutputTokens,
                 ct);
             throw;
         }
@@ -350,7 +356,9 @@ public sealed class LessonService(
         await db.SaveChangesAsync(ct);
     }
 
-    private Task LogGenerationAsync(Guid lessonId, TimeSpan elapsed, string status, string? errorCode, CancellationToken ct)
+    private Task LogGenerationAsync(
+        Guid lessonId, TimeSpan elapsed, string status, string? errorCode,
+        int? inputTokens, int? outputTokens, CancellationToken ct)
     {
         db.AiGenerationLogs.Add(new AiGenerationLog
         {
@@ -359,6 +367,8 @@ public sealed class LessonService(
             Model = generator.ModelName,
             PromptVersion = PromptBuilder.PromptVersion,
             LatencyMs = (int)elapsed.TotalMilliseconds,
+            InputTokens = inputTokens,
+            OutputTokens = outputTokens,
             Status = status,
             ErrorCode = errorCode,
             CreatedAt = clock.UtcNow

@@ -11,13 +11,46 @@ repetition, dùng chính ảnh làm "memory anchor".
 
 ## Trạng thái dự án
 
-Backend API đã xong Phase 1–3 theo roadmap trong đặc tả: domain + database +
+Backend API đã xong Phase 1–4 theo roadmap trong đặc tả: domain + database +
 migrations, **auth thật (đăng ký/đăng nhập + JWT)**, upload ảnh
-(validate/strip EXIF/SHA-256), emotion policy, và API tạo/xem/liệt kê/
-regenerate/xóa lesson + review (spaced repetition) — tất cả chạy được
-end-to-end với **fake AI/TTS adapter** (chưa nối OpenAI thật, xem Phase 4/5).
-Chuẩn bị build bản Android prototype để khảo sát người dùng trước khi triển
-khai production.
+(validate/strip EXIF/SHA-256), emotion policy, **lesson generation bằng GPT-4o
+thật (vision + Structured Outputs)** — có fallback sang fake adapter nếu chưa
+config API key — và API tạo/xem/liệt kê/regenerate/xóa lesson + review (spaced
+repetition). TTS vẫn còn fake (Phase 5, xem bên dưới). Chuẩn bị build bản
+Android prototype để khảo sát người dùng trước khi triển khai production.
+
+### AI thật (GPT-4o) — Phase 4
+
+`ILessonGenerator` có 2 implementation, chọn tự động theo config (không cần
+sửa code): `FakeLessonGenerator` (mặc định, deterministic) và
+`OpenAiLessonGenerator` (dùng khi có `OpenAi:ApiKey`). Tách thành 2 lớp riêng
+biệt để dễ đọc/debug:
+
+- **`OpenAiClient`** (`SnapLingo.Infrastructure/OpenAi/OpenAiClient.cs`) — CHỈ
+  biết gọi OpenAI Chat Completions API (model config được, mặc định `gpt-4o`),
+  không biết gì về "lesson"/"emotion". Dùng `HttpClient` thuần (không dùng
+  OpenAI SDK) nên request/response JSON thấy trực tiếp, dễ debug khi model trả
+  sai. Tự retry 429/5xx/timeout (không retry lỗi 4xx khác), fail rõ ràng nếu
+  `finish_reason=length` (bị cắt do vượt token).
+- **`OpenAiLessonGenerator`** — biết về SnapLingo: build prompt
+  (`PromptBuilder`), đọc ảnh từ `IObjectStorage`, gọi `OpenAiClient` với JSON
+  Schema (`OpenAiLessonSchema`, Structured Outputs strict mode) khớp đúng
+  `GeneratedLesson`, rồi deserialize kết quả.
+
+**Cấu hình API key** (không bao giờ commit key thật vào `appsettings.json`):
+
+```bash
+cd apps/api
+dotnet user-secrets set "OpenAi:ApiKey" "sk-..." --project src/SnapLingo.Api
+```
+
+hoặc set biến môi trường `OpenAi__ApiKey` (dùng cho CI/deployment). Không có
+key → tự động fallback `FakeLessonGenerator`, không lỗi, không tốn phí.
+`LessonService` validate output của AI thật giống hệt fake adapter (đúng
+range vocab theo emotion, quiz correctAnswer nằm trong options...) — nếu
+GPT-4o trả sai (có thể xảy ra, LLM không hoàn hảo), lesson bị đánh dấu
+`Failed` thay vì lưu sai (AC-09), token vẫn được ghi vào `ai_generation_logs`
+vì tiền đã tốn dù output không hợp lệ.
 
 ### Auth
 
@@ -118,14 +151,15 @@ services: `AuthService`, `UserService`, `PhotoService`, `LessonService`,
 interface `ITokenService`/`ILessonGenerator`/`ITextToSpeechService`/
 `IObjectStorage` mà Infrastructure implement) → `SnapLingo.Infrastructure`
 (EF Core DbContext, configurations, migrations, Npgsql, local object
-storage, fake AI/TTS adapter, `JwtTokenService`) → `SnapLingo.Contracts`
+storage, `JwtTokenService`, `FakeLessonGenerator`/`OpenAiLessonGenerator`/
+`OpenAiClient`, `FakeTextToSpeechService`) → `SnapLingo.Contracts`
 (Request/Response DTO cho API) → `SnapLingo.Api` (minimal API endpoints,
 JWT bearer auth, exception handling, Swagger, health check).
 
-`ILessonGenerator`/`ITextToSpeechService` hiện trỏ vào `FakeLessonGenerator`/
-`FakeTextToSpeechService` (Phase 3) — deterministic, không gọi OpenAI. Phase 4
-sẽ thay bằng adapter OpenAI thật đứng sau đúng interface này, không phải sửa
-`LessonService`/endpoints.
+`ILessonGenerator` trỏ vào `OpenAiLessonGenerator` (GPT-4o thật) nếu có
+`OpenAi:ApiKey`, ngược lại `FakeLessonGenerator` — xem mục "AI thật (GPT-4o)"
+ở trên. `ITextToSpeechService` vẫn trỏ `FakeTextToSpeechService` (Phase 5
+chưa làm).
 
 ## Tài liệu trong repo
 
