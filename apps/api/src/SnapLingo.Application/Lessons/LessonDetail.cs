@@ -9,7 +9,8 @@ public sealed record LessonVocabularyDetail(
     string? Ipa,
     string? PartOfSpeech,
     string? MeaningVi,
-    string? Example,
+    string? ExampleEn,
+    string? ExampleVi,
     string? VisualAnchor,
     int SortOrder);
 
@@ -17,6 +18,7 @@ public sealed record LessonVocabularyDetail(
 /// Fully hydrated view of a lesson: entity fields + the JSON blobs from <c>lesson_content</c>
 /// deserialized back into their generation-time shapes, plus signed media URLs. This is what
 /// <see cref="LessonService"/> hands to the API layer for mapping onto the section-8.3 response.
+/// Every learner-facing text is bilingual (English + Vietnamese) — see <c>GeneratedLesson</c>.
 /// </summary>
 public sealed record LessonDetail(
     Guid LessonId,
@@ -29,7 +31,8 @@ public sealed record LessonDetail(
     string? ModelName,
     GeneratedScene? Scene,
     IReadOnlyList<LessonVocabularyDetail> Vocabulary,
-    string? Context,
+    string? ContextEn,
+    string? ContextVi,
     GeneratedStory? Story,
     IReadOnlyList<GeneratedDialogueTurn> Dialogue,
     IReadOnlyList<GeneratedQuizItem> Quiz,
@@ -44,8 +47,9 @@ public sealed record LessonSummary(
     string CefrLevel,
     LessonStatus Status,
     int Version,
-    string? SceneTitle,
+    string? SceneTitleEn,
+    string? SceneTitleVi,
     DateTimeOffset CreatedAt);
 
-/// <summary>Internal storage shape for <c>lesson_content.story_json</c> (title + text + real-life context together).</summary>
-public sealed record StoredStory(string Title, string Text, string Context);
+/// <summary>Internal storage shape for <c>lesson_content.story_json</c> (title + text + real-life context, both languages).</summary>
+public sealed record StoredStory(string TitleEn, string TitleVi, string TextEn, string TextVi, string ContextEn, string ContextVi);

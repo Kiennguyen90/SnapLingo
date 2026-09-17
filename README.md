@@ -34,6 +34,24 @@ Tài khoản demo được seed sẵn để test ngay không cần đăng ký:
 Trong Swagger UI (`/swagger`), bấm nút **Authorize** và dán access token vào
 để test các endpoint cần đăng nhập trực tiếp trên UI.
 
+### Lesson song ngữ (Anh–Việt)
+
+Mọi phần nội dung học (scene, story, dialogue, quiz, ví dụ từ vựng) đều có
+2 phiên bản `*En`/`*Vi`, sinh cùng lúc trong 1 lần gọi AI adapter (không tách
+bước dịch riêng) để tiết kiệm chi phí và tránh lệch nghĩa. Audio chỉ đọc bản
+tiếng Anh (mục đích luyện phát âm). Riêng đáp án/lựa chọn quiz giữ nguyên
+tiếng Anh vì đang kiểm tra đúng từ vựng tiếng Anh.
+
+### Khi nào gọi AI, khi nào chỉ load lại
+
+`POST /lessons` sẽ **tái dùng lesson đã có** thay vì gọi AI lại nếu tồn tại
+lesson `Completed` với đúng bộ `(user, photo, emotion, cefrLevel,
+nativeLanguage, promptVersion)` — tránh tốn phí khi mở lại cùng ảnh/cảm xúc
+hoặc app retry do mất mạng. Đổi emotion/CEFR luôn tạo bộ khoá khác → luôn gọi
+AI. `POST /lessons/{id}/regenerate` luôn gọi AI bất kể cache (đây là hành
+động chủ động của user, tăng `version`). Đổi `PromptBuilder.PromptVersion`
+(vd khi schema output đổi) cũng vô hiệu hoá cache cũ một cách có chủ đích.
+
 ### API hiện có (`/api/v1`)
 
 | Method | Route | Auth | Ghi chú |

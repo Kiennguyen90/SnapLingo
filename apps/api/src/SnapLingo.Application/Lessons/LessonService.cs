@@ -26,8 +26,20 @@ public sealed class LessonService(
 {
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 
-    public Task<Lesson> CreateAsync(CreateLessonCommand command, CancellationToken ct) =>
-        GenerateInternalAsync(
+    public async Task<Lesson> CreateAsync(CreateLessonCommand command, CancellationToken ct)
+    {
+        // Cost control: creating a lesson for a (photo, emotion, CEFR, native language) combo
+        // that already has a Completed result under the current prompt schema just hands back
+        // that lesson instead of paying for another AI call. This is a plain "create" request
+        // (idempotent-ish reuse) — a caller who explicitly wants a fresh take uses /regenerate,
+        // which always calls the AI adapter and bumps the version regardless of this cache.
+        var reusable = await FindReusableLessonAsync(command, ct);
+        if (reusable is not null)
+        {
+            return reusable;
+        }
+
+        return await GenerateInternalAsync(
             command.UserId,
             command.PhotoId,
             command.Emotion,
@@ -37,6 +49,20 @@ public sealed class LessonService(
             command.VocabularyTarget,
             version: 1,
             ct);
+    }
+
+    private Task<Lesson?> FindReusableLessonAsync(CreateLessonCommand command, CancellationToken ct) =>
+        db.Lessons
+            .Where(l =>
+                l.UserId == command.UserId &&
+                l.PhotoId == command.PhotoId &&
+                l.Emotion == command.Emotion &&
+                l.CefrLevel == command.CefrLevel &&
+                l.NativeLanguage == command.NativeLanguage &&
+                l.PromptVersion == PromptBuilder.PromptVersion &&
+                l.Status == LessonStatus.Completed)
+            .OrderByDescending(l => l.CreatedAt)
+            .FirstOrDefaultAsync(ct);
 
     public async Task<Lesson> RegenerateAsync(RegenerateLessonCommand command, CancellationToken ct)
     {
@@ -94,9 +120,12 @@ public sealed class LessonService(
             .ToListAsync(ct);
 
         return rows
-            .Select(r => new LessonSummary(
-                r.Id, r.PhotoId, r.Emotion, r.CefrLevel, r.Status, r.Version,
-                SceneTitleOrNull(r.SceneJson), r.CreatedAt))
+            .Select(r =>
+            {
+                var (titleEn, titleVi) = SceneTitlesOrNull(r.SceneJson);
+                return new LessonSummary(
+                    r.Id, r.PhotoId, r.Emotion, r.CefrLevel, r.Status, r.Version, titleEn, titleVi, r.CreatedAt);
+            })
             .ToList();
     }
 
@@ -140,6 +169,7 @@ public sealed class LessonService(
             PhotoId = photoId,
             Emotion = emotion,
             CefrLevel = cefrLevel,
+            NativeLanguage = nativeLanguage,
             Status = LessonStatus.Pending,
             Version = version,
             PromptVersion = PromptBuilder.PromptVersion,
@@ -188,9 +218,10 @@ public sealed class LessonService(
     /// <summary>Guardrails from spec section 19.1 — never let malformed AI output become a Completed lesson.</summary>
     private static void ValidateGeneratedLesson(GeneratedLesson generated, Domain.ValueObjects.EmotionProfile profile)
     {
-        if (string.IsNullOrWhiteSpace(generated.Scene.Title) || string.IsNullOrWhiteSpace(generated.Scene.Description))
+        if (string.IsNullOrWhiteSpace(generated.Scene.TitleEn) || string.IsNullOrWhiteSpace(generated.Scene.DescriptionEn) ||
+            string.IsNullOrWhiteSpace(generated.Scene.TitleVi) || string.IsNullOrWhiteSpace(generated.Scene.DescriptionVi))
         {
-            throw new AppValidationException("AI output is missing a scene title/description.");
+            throw new AppValidationException("AI output is missing a scene title/description in English or Vietnamese.");
         }
 
         if (generated.Vocabulary.Count < profile.VocabularyMin || generated.Vocabulary.Count > profile.VocabularyMax)
@@ -205,14 +236,19 @@ public sealed class LessonService(
             throw new AppValidationException("AI output contains duplicate vocabulary.");
         }
 
-        if (string.IsNullOrWhiteSpace(generated.Story.Text))
+        if (string.IsNullOrWhiteSpace(generated.Story.TextEn) || string.IsNullOrWhiteSpace(generated.Story.TextVi))
         {
-            throw new AppValidationException("AI output is missing a story.");
+            throw new AppValidationException("AI output is missing a story in English or Vietnamese.");
         }
 
         if (generated.Dialogue.Count == 0)
         {
             throw new AppValidationException("AI output is missing a dialogue.");
+        }
+
+        if (generated.Dialogue.Any(d => string.IsNullOrWhiteSpace(d.TextEn) || string.IsNullOrWhiteSpace(d.TextVi)))
+        {
+            throw new AppValidationException("AI output has a dialogue line missing its English or Vietnamese text.");
         }
 
         if (generated.Quiz.Count == 0)
@@ -225,7 +261,7 @@ public sealed class LessonService(
             if (quizItem.Type == "multiple_choice" && !quizItem.Options.Contains(quizItem.CorrectAnswer))
             {
                 throw new AppValidationException(
-                    $"Quiz item '{quizItem.Question}' has a correct answer that is not one of its options.");
+                    $"Quiz item '{quizItem.QuestionEn}' has a correct answer that is not one of its options.");
             }
         }
     }
@@ -238,7 +274,11 @@ public sealed class LessonService(
             SchemaVersion = PromptBuilder.PromptVersion,
             SceneJson = JsonSerializer.Serialize(generated.Scene, JsonOptions),
             StoryJson = JsonSerializer.Serialize(
-                new StoredStory(generated.Story.Title, generated.Story.Text, generated.Context), JsonOptions),
+                new StoredStory(
+                    generated.Story.TitleEn, generated.Story.TitleVi,
+                    generated.Story.TextEn, generated.Story.TextVi,
+                    generated.ContextEn, generated.ContextVi),
+                JsonOptions),
             DialogueJson = JsonSerializer.Serialize(generated.Dialogue, JsonOptions),
             QuizJson = JsonSerializer.Serialize(generated.Quiz, JsonOptions)
         };
@@ -270,7 +310,8 @@ public sealed class LessonService(
                 LessonId = lesson.Id,
                 VocabularyId = vocabulary.Id,
                 Meaning = item.MeaningVi,
-                Example = item.Example,
+                Example = item.ExampleEn,
+                ExampleVi = item.ExampleVi,
                 VisualAnchor = item.VisualAnchor,
                 SortOrder = i
             });
@@ -344,6 +385,7 @@ public sealed class LessonService(
                 v.Vocabulary?.PartOfSpeech,
                 v.Meaning,
                 v.Example,
+                v.ExampleVi,
                 v.VisualAnchor,
                 v.SortOrder))
             .ToList();
@@ -359,8 +401,9 @@ public sealed class LessonService(
             lesson.ModelName,
             scene,
             vocabulary,
-            story?.Context,
-            story is null ? null : new GeneratedStory(story.Title, story.Text),
+            story?.ContextEn,
+            story?.ContextVi,
+            story is null ? null : new GeneratedStory(story.TitleEn, story.TitleVi, story.TextEn, story.TextVi),
             dialogue,
             quiz,
             storyAudio is null ? null : storage.GetSignedUrl(storyAudio.ObjectKey, TimeSpan.FromMinutes(15)),
@@ -368,7 +411,11 @@ public sealed class LessonService(
             lesson.CreatedAt);
     }
 
-    private static string? SceneTitleOrNull(string? sceneJson) => Deserialize<GeneratedScene>(sceneJson)?.Title;
+    private static (string? En, string? Vi) SceneTitlesOrNull(string? sceneJson)
+    {
+        var scene = Deserialize<GeneratedScene>(sceneJson);
+        return (scene?.TitleEn, scene?.TitleVi);
+    }
 
     private static T? Deserialize<T>(string? json) where T : class =>
         string.IsNullOrWhiteSpace(json) ? null : JsonSerializer.Deserialize<T>(json, JsonOptions);

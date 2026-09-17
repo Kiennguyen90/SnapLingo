@@ -82,8 +82,10 @@ public class LessonServiceTests
         var happyDetail = await service.GetDetailAsync(userId, happyLesson.Id, CancellationToken.None);
         var tiredDetail = await service.GetDetailAsync(userId, tiredLesson.Id, CancellationToken.None);
 
-        Assert.Equal(happyDetail!.Scene!.Title, tiredDetail!.Scene!.Title);
-        Assert.Equal(happyDetail.Scene.Description, tiredDetail.Scene.Description);
+        Assert.Equal(happyDetail!.Scene!.TitleEn, tiredDetail!.Scene!.TitleEn);
+        Assert.Equal(happyDetail.Scene.TitleVi, tiredDetail.Scene.TitleVi);
+        Assert.Equal(happyDetail.Scene.DescriptionEn, tiredDetail.Scene.DescriptionEn);
+        Assert.Equal(happyDetail.Scene.DescriptionVi, tiredDetail.Scene.DescriptionVi);
 
         // But length-carrying fields DO differ (Tired is shorter).
         Assert.True(tiredDetail.Vocabulary.Count < happyDetail.Vocabulary.Count
@@ -159,5 +161,80 @@ public class LessonServiceTests
 
         Assert.False(await db.Lessons.AnyAsync(l => l.Id == lesson.Id));
         Assert.False(await db.ReviewEvents.AnyAsync(r => r.LessonId == lesson.Id));
+    }
+
+    [Fact]
+    public async Task CreateAsync_SameInputTwice_ReusesLessonInsteadOfCallingGeneratorAgain()
+    {
+        await using var db = CreateDb();
+        var (_, userId, photoId) = await SeedUserAndPhotoAsync(db);
+        var generator = new CountingLessonGenerator();
+        var service = new LessonService(db, new EmotionPolicy(), generator,
+            new InMemoryObjectStorage(), new FixedDateTimeProvider(Now));
+
+        var command = new CreateLessonCommand(userId, photoId, EmotionType.Curious, "A2", "vi", null, 6);
+
+        var first = await service.CreateAsync(command, CancellationToken.None);
+        var second = await service.CreateAsync(command, CancellationToken.None);
+
+        Assert.Equal(first.Id, second.Id);
+        Assert.Equal(1, generator.CallCount);
+        Assert.Equal(1, await db.Lessons.CountAsync());
+    }
+
+    [Fact]
+    public async Task CreateAsync_DifferentEmotion_CallsGeneratorAgainAndCreatesASeparateLesson()
+    {
+        await using var db = CreateDb();
+        var (_, userId, photoId) = await SeedUserAndPhotoAsync(db);
+        var generator = new CountingLessonGenerator();
+        var service = new LessonService(db, new EmotionPolicy(), generator,
+            new InMemoryObjectStorage(), new FixedDateTimeProvider(Now));
+
+        var happy = await service.CreateAsync(
+            new CreateLessonCommand(userId, photoId, EmotionType.Happy, "A2", null, null, 6), CancellationToken.None);
+        var tired = await service.CreateAsync(
+            new CreateLessonCommand(userId, photoId, EmotionType.Tired, "A2", null, null, 6), CancellationToken.None);
+
+        Assert.NotEqual(happy.Id, tired.Id);
+        Assert.Equal(2, generator.CallCount);
+    }
+
+    [Fact]
+    public async Task RegenerateAsync_AlwaysCallsGeneratorAgain_EvenForIdenticalInput()
+    {
+        await using var db = CreateDb();
+        var (_, userId, photoId) = await SeedUserAndPhotoAsync(db);
+        var generator = new CountingLessonGenerator();
+        var service = new LessonService(db, new EmotionPolicy(), generator,
+            new InMemoryObjectStorage(), new FixedDateTimeProvider(Now));
+
+        var original = await service.CreateAsync(
+            new CreateLessonCommand(userId, photoId, EmotionType.Happy, "A2", null, null, 6), CancellationToken.None);
+
+        var regenerated = await service.RegenerateAsync(
+            new RegenerateLessonCommand(userId, original.Id, EmotionType.Happy, "A2", null, null, null),
+            CancellationToken.None);
+
+        Assert.NotEqual(original.Id, regenerated.Id);
+        Assert.Equal(2, generator.CallCount);
+    }
+
+    [Fact]
+    public async Task CreateAsync_ProducesBilingualContent()
+    {
+        await using var db = CreateDb();
+        var (_, userId, photoId) = await SeedUserAndPhotoAsync(db);
+        var service = new LessonService(db, new EmotionPolicy(), new FakeLessonGenerator(),
+            new InMemoryObjectStorage(), new FixedDateTimeProvider(Now));
+
+        var lesson = await service.CreateAsync(
+            new CreateLessonCommand(userId, photoId, EmotionType.Happy, "A2", null, null, 6), CancellationToken.None);
+        var detail = await service.GetDetailAsync(userId, lesson.Id, CancellationToken.None);
+
+        Assert.False(string.IsNullOrWhiteSpace(detail!.Scene!.TitleVi));
+        Assert.False(string.IsNullOrWhiteSpace(detail.Story!.TextVi));
+        Assert.All(detail.Dialogue, d => Assert.False(string.IsNullOrWhiteSpace(d.TextVi)));
+        Assert.All(detail.Vocabulary, v => Assert.False(string.IsNullOrWhiteSpace(v.MeaningVi)));
     }
 }

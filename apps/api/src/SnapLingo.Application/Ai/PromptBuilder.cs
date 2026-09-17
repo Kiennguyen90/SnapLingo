@@ -10,7 +10,13 @@ namespace SnapLingo.Application.Ai;
 /// </summary>
 public static class PromptBuilder
 {
-    public const string PromptVersion = "lesson-v1.0.0";
+    /// <summary>
+    /// Bumped from lesson-v1.0.0 because the output schema gained mandatory Vietnamese
+    /// fields (Scene/Story/Dialogue/Quiz TitleVi/TextVi/etc.) — a v1.0.0 cached lesson has
+    /// no VI content, so this version bump also makes <c>LessonService</c>'s reuse-instead-
+    /// of-regenerate lookup correctly treat old English-only lessons as a cache miss.
+    /// </summary>
+    public const string PromptVersion = "lesson-v1.1.0";
 
     public static string Build(GenerateLessonInput input)
     {
@@ -26,6 +32,7 @@ public static class PromptBuilder
         sb.AppendLine("5. Keep examples natural and useful for everyday English.");
         sb.AppendLine("6. Never output markdown. Return only data matching the required JSON schema.");
         sb.AppendLine("7. If the image is unclear, say so in scene confidence/notes rather than hallucinating details.");
+        sb.AppendLine("8. Every learner-facing text field is bilingual: provide both an English and a Vietnamese version (scene title/description, story title/text, each dialogue line, each quiz question/explanation, each vocabulary example sentence). The Vietnamese version must convey the same meaning, not a literal word-for-word gloss.");
         sb.AppendLine();
         sb.AppendLine("LEARNER");
         sb.AppendLine($"- Native language: {input.NativeLanguage ?? "unspecified"}");
@@ -43,14 +50,14 @@ public static class PromptBuilder
         sb.AppendLine($"- TTS style hint: {input.EmotionProfile.TtsStyleHint}");
         sb.AppendLine();
         sb.AppendLine("TASK");
-        sb.AppendLine("Analyze the provided image and create:");
+        sb.AppendLine("Analyze the provided image and create, in both English and Vietnamese:");
         sb.AppendLine("1. scene title and 1-2 sentence factual description,");
-        sb.AppendLine("2. vocabulary with IPA, Vietnamese meaning, part of speech, example sentence, visual anchor,");
+        sb.AppendLine("2. vocabulary with IPA, Vietnamese meaning, part of speech, example sentence (English + Vietnamese), visual anchor,");
         sb.AppendLine("3. a short real-life context,");
         sb.AppendLine("4. a mini-story using the selected vocabulary,");
         sb.AppendLine("5. a short dialogue,");
-        sb.AppendLine($"6. {input.EmotionProfile.QuizItemMin}-{input.EmotionProfile.QuizItemMax} quiz items with one unambiguous correct answer,");
-        sb.AppendLine("7. TTS-ready text chunks.");
+        sb.AppendLine($"6. {input.EmotionProfile.QuizItemMin}-{input.EmotionProfile.QuizItemMax} quiz items with one unambiguous correct answer (options/correctAnswer stay in English — they test the English word),");
+        sb.AppendLine("7. TTS-ready text chunks (English only — audio is for English pronunciation practice).");
         sb.AppendLine();
         sb.AppendLine("QUALITY CHECK BEFORE RETURNING");
         sb.AppendLine("- Vocabulary fits the image and CEFR.");

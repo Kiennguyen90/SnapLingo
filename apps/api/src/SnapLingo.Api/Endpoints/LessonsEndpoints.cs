@@ -61,7 +61,8 @@ public static class LessonsEndpoints
         {
             var items = await lessonService.ListAsync(currentUser.UserId, page, pageSize, ct);
             var response = items.Select(l => new LessonSummaryResponse(
-                l.LessonId, l.PhotoId, l.Emotion, l.CefrLevel, l.Status, l.Version, l.SceneTitle, l.CreatedAt));
+                l.LessonId, l.PhotoId, l.Emotion, l.CefrLevel, l.Status, l.Version,
+                l.SceneTitleEn, l.SceneTitleVi, l.CreatedAt));
 
             return Results.Ok(response);
         })
@@ -112,10 +113,12 @@ public static class LessonsEndpoints
             var profile = emotionPolicy.GetProfile(detail.Emotion, detail.CefrLevel);
             var voice = audioOptions.Value.DefaultVoice;
 
+            // Audio is for English pronunciation practice — synthesize the English text only,
+            // even though the lesson content itself is bilingual (spec section 11.1).
             var (_, storyUrl) = await audioService.GetOrCreateAsync(
-                id, "story", detail.Story.Text, voice, profile.TtsStyleHint, ct);
+                id, "story", detail.Story.TextEn, voice, profile.TtsStyleHint, ct);
 
-            var dialogueText = string.Join(" ", detail.Dialogue.Select(d => d.Text));
+            var dialogueText = string.Join(" ", detail.Dialogue.Select(d => d.TextEn));
             var (_, dialogueUrl) = await audioService.GetOrCreateAsync(
                 id, "dialogue", dialogueText, voice, profile.TtsStyleHint, ct);
 
@@ -142,12 +145,15 @@ public static class LessonsEndpoints
         d.Status,
         d.Version,
         new LessonInputResponse(d.Emotion, d.CefrLevel),
-        d.Scene is null ? null : new SceneResponse(d.Scene.Title, d.Scene.Description, d.Scene.Confidence, d.Scene.Objects),
+        d.Scene is null
+            ? null
+            : new SceneResponse(d.Scene.TitleEn, d.Scene.TitleVi, d.Scene.DescriptionEn, d.Scene.DescriptionVi, d.Scene.Confidence, d.Scene.Objects),
         d.Vocabulary.Select(v => new VocabularyResponse(
-            v.VocabularyId, v.Word, v.Ipa, v.PartOfSpeech, v.MeaningVi, v.Example, v.VisualAnchor)).ToList(),
-        d.Story is null ? null : new StoryResponse(d.Story.Title, d.Story.Text, d.Context),
-        d.Dialogue.Select(t => new DialogueTurnResponse(t.Speaker, t.Text)).ToList(),
-        d.Quiz.Select(q => new QuizItemResponse(q.Type, q.Question, q.Options, q.CorrectAnswer, q.Explanation)).ToList(),
+            v.VocabularyId, v.Word, v.Ipa, v.PartOfSpeech, v.MeaningVi, v.ExampleEn, v.ExampleVi, v.VisualAnchor)).ToList(),
+        d.Story is null ? null : new StoryResponse(d.Story.TitleEn, d.Story.TitleVi, d.Story.TextEn, d.Story.TextVi, d.ContextEn, d.ContextVi),
+        d.Dialogue.Select(t => new DialogueTurnResponse(t.Speaker, t.TextEn, t.TextVi)).ToList(),
+        d.Quiz.Select(q => new QuizItemResponse(
+            q.Type, q.QuestionEn, q.QuestionVi, q.Options, q.CorrectAnswer, q.ExplanationEn, q.ExplanationVi)).ToList(),
         new LessonAudioResponse(d.StoryAudioUrl, d.DialogueAudioUrl),
         d.CreatedAt);
 }

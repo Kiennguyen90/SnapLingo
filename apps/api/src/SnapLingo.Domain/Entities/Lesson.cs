@@ -9,6 +9,11 @@ public class Lesson
     public Guid PhotoId { get; set; }
     public EmotionType Emotion { get; set; }
     public string CefrLevel { get; set; } = "A2";
+
+    /// <summary>Learner's native language preference (profile field). Lesson content is always
+    /// bilingual English+Vietnamese regardless of this value — see <c>GeneratedLesson</c>.</summary>
+    public string? NativeLanguage { get; set; }
+
     public LessonStatus Status { get; set; } = LessonStatus.Pending;
     public int Version { get; set; } = 1;
     public string? PromptVersion { get; set; }

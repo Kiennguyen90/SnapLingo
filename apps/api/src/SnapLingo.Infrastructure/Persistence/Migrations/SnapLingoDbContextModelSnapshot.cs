@@ -138,6 +138,10 @@ namespace SnapLingo.Infrastructure.Persistence.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)");
 
+                    b.Property<string>("NativeLanguage")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
                     b.Property<Guid>("PhotoId")
                         .HasColumnType("uuid");
 
@@ -162,6 +166,8 @@ namespace SnapLingo.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("UserId", "CreatedAt")
                         .IsDescending(false, true);
+
+                    b.HasIndex("UserId", "PhotoId", "Emotion", "CefrLevel", "Status");
 
                     b.ToTable("lessons", (string)null);
                 });
@@ -202,6 +208,10 @@ namespace SnapLingo.Infrastructure.Persistence.Migrations
                         .HasColumnType("uuid");
 
                     b.Property<string>("Example")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<string>("ExampleVi")
                         .HasMaxLength(500)
                         .HasColumnType("character varying(500)");
 

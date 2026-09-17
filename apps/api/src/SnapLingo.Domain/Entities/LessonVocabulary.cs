@@ -6,6 +6,7 @@ public class LessonVocabulary
     public Guid VocabularyId { get; set; }
     public string? Meaning { get; set; }
     public string? Example { get; set; }
+    public string? ExampleVi { get; set; }
     public string? VisualAnchor { get; set; }
     public int SortOrder { get; set; }
 

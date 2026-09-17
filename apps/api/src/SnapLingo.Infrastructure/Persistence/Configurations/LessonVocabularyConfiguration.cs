@@ -13,6 +13,7 @@ public class LessonVocabularyConfiguration : IEntityTypeConfiguration<LessonVoca
 
         builder.Property(lv => lv.Meaning).HasMaxLength(500);
         builder.Property(lv => lv.Example).HasMaxLength(500);
+        builder.Property(lv => lv.ExampleVi).HasMaxLength(500);
         builder.Property(lv => lv.VisualAnchor).HasMaxLength(200);
 
         builder.HasOne(lv => lv.Lesson)

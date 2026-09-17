@@ -2,12 +2,15 @@ using SnapLingo.Domain.Enums;
 
 namespace SnapLingo.Contracts.Responses;
 
-// Shapes mirror spec section 8.3 ("Response rút gọn") field-for-field, plus a few additive
-// identifiers (photoId/version/createdAt) that the mobile history/detail screens need.
+// Shapes mirror spec section 8.3 ("Response rút gọn"), extended for the bilingual requirement:
+// every learner-facing text carries an *En and a *Vi field, plus a few additive identifiers
+// (photoId/version/createdAt) that the mobile history/detail screens need.
 
 public sealed record LessonInputResponse(EmotionType Emotion, string CefrLevel);
 
-public sealed record SceneResponse(string Title, string Description, double Confidence, IReadOnlyList<string> Objects);
+public sealed record SceneResponse(
+    string TitleEn, string TitleVi, string DescriptionEn, string DescriptionVi,
+    double Confidence, IReadOnlyList<string> Objects);
 
 public sealed record VocabularyResponse(
     Guid VocabularyId,
@@ -15,19 +18,22 @@ public sealed record VocabularyResponse(
     string? Ipa,
     string? PartOfSpeech,
     string? MeaningVi,
-    string? Example,
+    string? ExampleEn,
+    string? ExampleVi,
     string? VisualAnchor);
 
-public sealed record StoryResponse(string Title, string Text, string? Context);
+public sealed record StoryResponse(string TitleEn, string TitleVi, string TextEn, string TextVi, string? ContextEn, string? ContextVi);
 
-public sealed record DialogueTurnResponse(string Speaker, string Text);
+public sealed record DialogueTurnResponse(string Speaker, string TextEn, string TextVi);
 
 public sealed record QuizItemResponse(
     string Type,
-    string Question,
+    string QuestionEn,
+    string? QuestionVi,
     IReadOnlyList<string> Options,
     string CorrectAnswer,
-    string? Explanation);
+    string? ExplanationEn,
+    string? ExplanationVi);
 
 public sealed record LessonAudioResponse(string? StoryUrl, string? DialogueUrl);
 
@@ -52,5 +58,6 @@ public sealed record LessonSummaryResponse(
     string CefrLevel,
     LessonStatus Status,
     int Version,
-    string? SceneTitle,
+    string? SceneTitleEn,
+    string? SceneTitleVi,
     DateTimeOffset CreatedAt);

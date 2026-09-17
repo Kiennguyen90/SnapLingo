@@ -22,6 +22,7 @@ public class LessonConfiguration : IEntityTypeConfiguration<Lesson>
             .IsRequired();
 
         builder.Property(l => l.CefrLevel).IsRequired().HasMaxLength(10);
+        builder.Property(l => l.NativeLanguage).HasMaxLength(20);
         builder.Property(l => l.PromptVersion).HasMaxLength(50);
         builder.Property(l => l.ModelName).HasMaxLength(100);
 
@@ -41,5 +42,9 @@ public class LessonConfiguration : IEntityTypeConfiguration<Lesson>
             .OnDelete(DeleteBehavior.Cascade);
 
         builder.HasIndex(l => new { l.UserId, l.CreatedAt }).IsDescending(false, true);
+
+        // Backs the "reuse instead of re-generating" lookup (spec cost-control NFR): the
+        // exact combo that would be regenerated for a fresh create request.
+        builder.HasIndex(l => new { l.UserId, l.PhotoId, l.Emotion, l.CefrLevel, l.Status });
     }
 }

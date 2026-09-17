@@ -9,11 +9,12 @@ public sealed class InvalidLessonGenerator : ILessonGenerator
 
     public Task<GeneratedLesson> GenerateAsync(GenerateLessonInput input, CancellationToken ct) =>
         Task.FromResult(new GeneratedLesson(
-            new GeneratedScene("Scene", "Description", 0.9, []),
+            new GeneratedScene("Scene", "Canh", "Description", "Mo ta", 0.9, []),
             Vocabulary: [], // empty -> fails the vocabulary-count guardrail
-            Context: "context",
-            new GeneratedStory("Title", "Text"),
-            Dialogue: [new GeneratedDialogueTurn("A", "Hi")],
-            Quiz: [new GeneratedQuizItem("multiple_choice", "Q", ["a", "b"], "a", null)],
+            ContextEn: "context",
+            ContextVi: "boi canh",
+            new GeneratedStory("Title", "Tieu de", "Text", "Noi dung"),
+            Dialogue: [new GeneratedDialogueTurn("A", "Hi", "Chao")],
+            Quiz: [new GeneratedQuizItem("multiple_choice", "Q", "Cau hoi", ["a", "b"], "a", null, null)],
             new GeneratedTts([], "Text", "Hi", "hint")));
 }

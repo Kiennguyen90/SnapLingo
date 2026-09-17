@@ -7,21 +7,23 @@ namespace SnapLingo.Infrastructure.Ai;
 /// photo → lesson → review pipeline be built and tested end to end before OpenAI is wired up
 /// (Phase 4). Scene output never varies with emotion — only length/tone-carrying fields do —
 /// which is exactly the "emotion never changes facts" rule the real adapter must also honor.
+/// Every learner-facing field is produced in English and Vietnamese together (bilingual
+/// requirement) — the real adapter must do the same per the updated <see cref="PromptBuilder"/>.
 /// </summary>
 public sealed class FakeLessonGenerator : ILessonGenerator
 {
     public string ModelName => "fake-lesson-generator-v1";
 
-    private static readonly (string Word, string Ipa, string Pos)[] WordBank =
+    private static readonly (string Word, string Ipa, string Pos, string Vi)[] WordBank =
     [
-        ("table", "/ˈteɪ.bəl/", "noun"),
-        ("chair", "/tʃer/", "noun"),
-        ("window", "/ˈwɪn.doʊ/", "noun"),
-        ("light", "/laɪt/", "noun"),
-        ("cup", "/kʌp/", "noun"),
-        ("plant", "/plænt/", "noun"),
-        ("phone", "/foʊn/", "noun"),
-        ("book", "/bʊk/", "noun"),
+        ("table", "/ˈteɪ.bəl/", "noun", "cái bàn"),
+        ("chair", "/tʃer/", "noun", "cái ghế"),
+        ("window", "/ˈwɪn.doʊ/", "noun", "cửa sổ"),
+        ("light", "/laɪt/", "noun", "đèn"),
+        ("cup", "/kʌp/", "noun", "cái cốc"),
+        ("plant", "/plænt/", "noun", "cây cảnh"),
+        ("phone", "/foʊn/", "noun", "điện thoại"),
+        ("book", "/bʊk/", "noun", "quyển sách"),
     ];
 
     public Task<GeneratedLesson> GenerateAsync(GenerateLessonInput input, CancellationToken ct)
@@ -29,8 +31,10 @@ public sealed class FakeLessonGenerator : ILessonGenerator
         var profile = input.EmotionProfile;
 
         var scene = new GeneratedScene(
-            Title: "An everyday scene",
-            Description: "The photo shows an everyday indoor scene with a few common objects.",
+            TitleEn: "An everyday scene",
+            TitleVi: "Một khung cảnh đời thường",
+            DescriptionEn: "The photo shows an everyday indoor scene with a few common objects.",
+            DescriptionVi: "Bức ảnh cho thấy một khung cảnh trong nhà đời thường với vài vật dụng quen thuộc.",
             Confidence: 0.9,
             Objects: WordBank.Take(3).Select(w => w.Word).ToArray());
 
@@ -41,22 +45,30 @@ public sealed class FakeLessonGenerator : ILessonGenerator
                 Word: w.Word,
                 Ipa: w.Ipa,
                 PartOfSpeech: w.Pos,
-                MeaningVi: $"({w.Word} - nghĩa tiếng Việt mẫu)",
-                Example: $"There is a {w.Word} in the photo.",
+                MeaningVi: w.Vi,
+                ExampleEn: $"There is a {w.Word} in the photo.",
+                ExampleVi: $"Có {w.Vi} trong bức ảnh.",
                 VisualAnchor: $"the {w.Word} in the scene"))
             .ToList();
 
         var storySentenceCount = profile.StorySentenceMin;
-        var storyText = string.Join(" ", Enumerable.Range(0, storySentenceCount)
+        var storyTextEn = string.Join(" ", Enumerable.Range(0, storySentenceCount)
             .Select(i => $"You notice the {vocabulary[i % vocabulary.Count].Word} nearby."));
-        var story = new GeneratedStory($"A moment with the {vocabulary[0].Word}", storyText);
+        var storyTextVi = string.Join(" ", Enumerable.Range(0, storySentenceCount)
+            .Select(i => $"Bạn để ý thấy {vocabulary[i % vocabulary.Count].MeaningVi} ở gần đó."));
+        var story = new GeneratedStory(
+            TitleEn: $"A moment with the {vocabulary[0].Word}",
+            TitleVi: $"Khoảnh khắc bên {vocabulary[0].MeaningVi}",
+            TextEn: storyTextEn,
+            TextVi: storyTextVi);
 
+        var secondWord = vocabulary[Math.Min(1, vocabulary.Count - 1)];
         var dialogue = new List<GeneratedDialogueTurn>
         {
-            new("A", $"What do you see near the {vocabulary[0].Word}?"),
-            new("B", $"I see a {vocabulary[Math.Min(1, vocabulary.Count - 1)].Word}."),
-            new("A", "That's a good observation."),
-            new("B", "Thanks, I'm learning to notice more details.")
+            new("A", $"What do you see near the {vocabulary[0].Word}?", $"Bạn thấy gì ở gần {vocabulary[0].MeaningVi}?"),
+            new("B", $"I see a {secondWord.Word}.", $"Tôi thấy {secondWord.MeaningVi}."),
+            new("A", "That's a good observation.", "Quan sát tốt đấy."),
+            new("B", "Thanks, I'm learning to notice more details.", "Cảm ơn, tôi đang tập để ý nhiều chi tiết hơn.")
         };
 
         var quizCount = profile.QuizItemMin;
@@ -68,24 +80,27 @@ public sealed class FakeLessonGenerator : ILessonGenerator
                 var options = distractors.Append(correct.Word).OrderBy(_ => Guid.NewGuid()).ToList();
                 return new GeneratedQuizItem(
                     Type: "multiple_choice",
-                    Question: $"Which word matches: \"{correct.Example}\"?",
+                    QuestionEn: $"Which word matches: \"{correct.ExampleEn}\"?",
+                    QuestionVi: $"Từ nào khớp với câu: \"{correct.ExampleEn}\"?",
                     Options: options,
                     CorrectAnswer: correct.Word,
-                    Explanation: $"The example sentence describes a {correct.Word}.");
+                    ExplanationEn: $"The example sentence describes a {correct.Word}.",
+                    ExplanationVi: $"Câu ví dụ mô tả {correct.MeaningVi}.");
             })
             .ToList();
 
         var result = new GeneratedLesson(
             scene,
             vocabulary,
-            Context: $"You are looking at the scene with a {profile.Tone} mood today.",
+            ContextEn: $"You are looking at the scene with a {profile.Tone} mood today.",
+            ContextVi: $"Hôm nay bạn đang nhìn khung cảnh này với tâm trạng {profile.Tone}.",
             story,
             dialogue,
             quiz,
             new GeneratedTts(
                 vocabulary.Select(v => v.Word).ToList(),
-                storyText,
-                string.Join(" ", dialogue.Select(d => d.Text)),
+                storyTextEn,
+                string.Join(" ", dialogue.Select(d => d.TextEn)),
                 profile.TtsStyleHint));
 
         return Task.FromResult(result);
