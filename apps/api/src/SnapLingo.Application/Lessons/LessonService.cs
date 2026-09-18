@@ -385,6 +385,7 @@ public sealed class LessonService(
 
         var storyAudio = lesson.AudioAssets.FirstOrDefault(a => a.Kind == "story");
         var dialogueAudio = lesson.AudioAssets.FirstOrDefault(a => a.Kind == "dialogue");
+        var storyAudioVi = lesson.AudioAssets.FirstOrDefault(a => a.Kind == "story_vi");
 
         var vocabulary = lesson.Vocabularies
             .OrderBy(v => v.SortOrder)
@@ -418,6 +419,7 @@ public sealed class LessonService(
             quiz,
             storyAudio is null ? null : storage.GetSignedUrl(storyAudio.ObjectKey, TimeSpan.FromMinutes(15)),
             dialogueAudio is null ? null : storage.GetSignedUrl(dialogueAudio.ObjectKey, TimeSpan.FromMinutes(15)),
+            storyAudioVi is null ? null : storage.GetSignedUrl(storyAudioVi.ObjectKey, TimeSpan.FromMinutes(15)),
             lesson.CreatedAt);
     }
 

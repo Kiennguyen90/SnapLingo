@@ -113,8 +113,8 @@ public static class LessonsEndpoints
             var profile = emotionPolicy.GetProfile(detail.Emotion, detail.CefrLevel);
             var voice = audioOptions.Value.DefaultVoice;
 
-            // Audio is for English pronunciation practice — synthesize the English text only,
-            // even though the lesson content itself is bilingual (spec section 11.1).
+            // Dialogue audio is for English pronunciation practice — synthesize the English
+            // text only, even though the lesson content itself is bilingual (spec section 11.1).
             var (_, storyUrl) = await audioService.GetOrCreateAsync(
                 id, "story", detail.Story.TextEn, voice, profile.TtsStyleHint, ct);
 
@@ -122,7 +122,12 @@ public static class LessonsEndpoints
             var (_, dialogueUrl) = await audioService.GetOrCreateAsync(
                 id, "dialogue", dialogueText, voice, profile.TtsStyleHint, ct);
 
-            return Results.Ok(new LessonAudioResponse(storyUrl, dialogueUrl));
+            // The story is also narrated in Vietnamese, so a learner can hear the meaning of
+            // the exact same text they just heard in English (different voice, own cache slot).
+            var (_, storyViUrl) = await audioService.GetOrCreateAsync(
+                id, "story_vi", detail.Story.TextVi, audioOptions.Value.VietnameseVoice, profile.TtsStyleHint, ct);
+
+            return Results.Ok(new LessonAudioResponse(storyUrl, dialogueUrl, storyViUrl));
         })
         .Produces<LessonAudioResponse>();
 
@@ -154,6 +159,6 @@ public static class LessonsEndpoints
         d.Dialogue.Select(t => new DialogueTurnResponse(t.Speaker, t.TextEn, t.TextVi)).ToList(),
         d.Quiz.Select(q => new QuizItemResponse(
             q.Type, q.QuestionEn, q.QuestionVi, q.Options, q.CorrectAnswer, q.ExplanationEn, q.ExplanationVi)).ToList(),
-        new LessonAudioResponse(d.StoryAudioUrl, d.DialogueAudioUrl),
+        new LessonAudioResponse(d.StoryAudioUrl, d.DialogueAudioUrl, d.StoryAudioViUrl),
         d.CreatedAt);
 }

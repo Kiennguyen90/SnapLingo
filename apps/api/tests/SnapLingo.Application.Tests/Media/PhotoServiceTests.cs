@@ -7,6 +7,7 @@ using SixLabors.ImageSharp.PixelFormats;
 using SnapLingo.Application.Common;
 using SnapLingo.Application.Media;
 using SnapLingo.Application.Tests.Fakes;
+using SnapLingo.Domain.Entities;
 using SnapLingo.Infrastructure.Persistence;
 
 namespace SnapLingo.Application.Tests.Media;
@@ -98,5 +99,65 @@ public class PhotoServiceTests
 
         await Assert.ThrowsAsync<AppValidationException>(() =>
             service.UploadAsync(Guid.NewGuid(), input, "application/pdf", CancellationToken.None));
+    }
+
+    [Fact]
+    public async Task GetAsync_NoMusicAttached_ReturnsPhotoWithNullMusic()
+    {
+        await using var db = CreateDb();
+        var storage = new InMemoryObjectStorage();
+        var service = CreateService(db, storage);
+        var userId = Guid.NewGuid();
+
+        var uploaded = await service.UploadAsync(userId, new MemoryStream(BuildJpegWithExifGps()), "image/jpeg", CancellationToken.None);
+
+        var detail = await service.GetAsync(userId, uploaded.Photo.Id, CancellationToken.None);
+
+        Assert.Equal(uploaded.Photo.Id, detail.Photo.Id);
+        Assert.Null(detail.Music);
+        Assert.Null(detail.MusicSignedUrl);
+    }
+
+    [Fact]
+    public async Task GetAsync_MusicAttached_ReturnsItsSignedUrl()
+    {
+        await using var db = CreateDb();
+        var storage = new InMemoryObjectStorage();
+        var service = CreateService(db, storage);
+        var userId = Guid.NewGuid();
+
+        var uploaded = await service.UploadAsync(userId, new MemoryStream(BuildJpegWithExifGps()), "image/jpeg", CancellationToken.None);
+
+        db.PhotoMusicAssets.Add(new PhotoMusicAsset
+        {
+            Id = Guid.NewGuid(),
+            PhotoId = uploaded.Photo.Id,
+            Mood = "calm",
+            ObjectKey = "music/test.wav",
+            TrackHash = new string('a', 64),
+            Model = "fake-music-v1",
+            DurationMs = 8000
+        });
+        await db.SaveChangesAsync();
+
+        var detail = await service.GetAsync(userId, uploaded.Photo.Id, CancellationToken.None);
+
+        Assert.NotNull(detail.Music);
+        Assert.Equal("calm", detail.Music!.Mood);
+        Assert.NotNull(detail.MusicSignedUrl);
+    }
+
+    [Fact]
+    public async Task GetAsync_PhotoNotOwnedByUser_ThrowsNotFound()
+    {
+        await using var db = CreateDb();
+        var storage = new InMemoryObjectStorage();
+        var service = CreateService(db, storage);
+        var userId = Guid.NewGuid();
+
+        var uploaded = await service.UploadAsync(userId, new MemoryStream(BuildJpegWithExifGps()), "image/jpeg", CancellationToken.None);
+
+        await Assert.ThrowsAsync<NotFoundException>(() =>
+            service.GetAsync(Guid.NewGuid(), uploaded.Photo.Id, CancellationToken.None));
     }
 }

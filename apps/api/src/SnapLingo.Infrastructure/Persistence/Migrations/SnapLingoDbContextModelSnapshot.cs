@@ -271,6 +271,48 @@ namespace SnapLingo.Infrastructure.Persistence.Migrations
                     b.ToTable("photos", (string)null);
                 });
 
+            modelBuilder.Entity("SnapLingo.Domain.Entities.PhotoMusicAsset", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("DurationMs")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Model")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("Mood")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)");
+
+                    b.Property<string>("ObjectKey")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<Guid>("PhotoId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("TrackHash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("PhotoId")
+                        .IsUnique();
+
+                    b.HasIndex("TrackHash", "Model");
+
+                    b.ToTable("photo_music_assets", (string)null);
+                });
+
             modelBuilder.Entity("SnapLingo.Domain.Entities.ReviewEvent", b =>
                 {
                     b.Property<Guid>("Id")
@@ -329,6 +371,10 @@ namespace SnapLingo.Infrastructure.Persistence.Migrations
                         .HasMaxLength(320)
                         .HasColumnType("character varying(320)");
 
+                    b.Property<string>("GoogleId")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
                     b.Property<string>("NativeLanguage")
                         .HasMaxLength(20)
                         .HasColumnType("character varying(20)");
@@ -341,6 +387,9 @@ namespace SnapLingo.Infrastructure.Persistence.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("Email")
+                        .IsUnique();
+
+                    b.HasIndex("GoogleId")
                         .IsUnique();
 
                     b.ToTable("users", (string)null);
@@ -487,6 +536,17 @@ namespace SnapLingo.Infrastructure.Persistence.Migrations
                         .IsRequired();
 
                     b.Navigation("User");
+                });
+
+            modelBuilder.Entity("SnapLingo.Domain.Entities.PhotoMusicAsset", b =>
+                {
+                    b.HasOne("SnapLingo.Domain.Entities.Photo", "Photo")
+                        .WithMany()
+                        .HasForeignKey("PhotoId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Photo");
                 });
 
             modelBuilder.Entity("SnapLingo.Domain.Entities.ReviewEvent", b =>

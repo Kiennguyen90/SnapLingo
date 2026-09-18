@@ -17,8 +17,8 @@ public class AuthServiceTests
             .UseInMemoryDatabase(Guid.NewGuid().ToString())
             .Options);
 
-    private static AuthService CreateService(SnapLingoDbContext db) =>
-        new(db, new PasswordHasher<User>(), new FakeTokenService(), new FixedDateTimeProvider(Now));
+    private static AuthService CreateService(SnapLingoDbContext db, FakeGoogleIdTokenValidator? googleValidator = null) =>
+        new(db, new PasswordHasher<User>(), new FakeTokenService(), googleValidator ?? new FakeGoogleIdTokenValidator(), new FixedDateTimeProvider(Now));
 
     [Fact]
     public async Task RegisterAsync_CreatesUserAndReturnsToken()
@@ -92,5 +92,96 @@ public class AuthServiceTests
 
         await Assert.ThrowsAsync<AuthenticationException>(() =>
             service.LoginAsync("nobody@example.com", "Passw0rd!", CancellationToken.None));
+    }
+
+    [Fact]
+    public async Task GoogleLoginAsync_NewGoogleAccount_CreatesAPasswordlessUser()
+    {
+        await using var db = CreateDb();
+        var google = new FakeGoogleIdTokenValidator().Register(
+            "valid-token", new GoogleUserInfo("google-sub-1", "New.Learner@Gmail.com", true, "New Learner"));
+        var service = CreateService(db, google);
+
+        var result = await service.GoogleLoginAsync("valid-token", CancellationToken.None);
+
+        Assert.Equal("new.learner@gmail.com", result.Email);
+        Assert.Equal("New Learner", result.DisplayName);
+
+        var stored = await db.Users.SingleAsync();
+        Assert.Equal("google-sub-1", stored.GoogleId);
+        Assert.Equal(string.Empty, stored.PasswordHash);
+    }
+
+    [Fact]
+    public async Task GoogleLoginAsync_SameGoogleAccountTwice_ReturnsTheSameUser()
+    {
+        await using var db = CreateDb();
+        var google = new FakeGoogleIdTokenValidator().Register(
+            "valid-token", new GoogleUserInfo("google-sub-2", "repeat@gmail.com", true, null));
+        var service = CreateService(db, google);
+
+        var first = await service.GoogleLoginAsync("valid-token", CancellationToken.None);
+        var second = await service.GoogleLoginAsync("valid-token", CancellationToken.None);
+
+        Assert.Equal(first.UserId, second.UserId);
+        Assert.Equal(1, await db.Users.CountAsync());
+    }
+
+    [Fact]
+    public async Task GoogleLoginAsync_ExistingEmailPasswordAccount_LinksGoogleIdInsteadOfDuplicating()
+    {
+        await using var db = CreateDb();
+        var google = new FakeGoogleIdTokenValidator().Register(
+            "valid-token", new GoogleUserInfo("google-sub-3", "already@example.com", true, "Already Registered"));
+        var service = CreateService(db, google);
+
+        var registered = await service.RegisterAsync(
+            "already@example.com", "Passw0rd!", "Already Registered", null, null, CancellationToken.None);
+
+        var googleResult = await service.GoogleLoginAsync("valid-token", CancellationToken.None);
+
+        Assert.Equal(registered.UserId, googleResult.UserId);
+        Assert.Equal(1, await db.Users.CountAsync());
+
+        var stored = await db.Users.SingleAsync();
+        Assert.Equal("google-sub-3", stored.GoogleId);
+        Assert.NotEqual(string.Empty, stored.PasswordHash); // the original password still works too
+    }
+
+    [Fact]
+    public async Task GoogleLoginAsync_UnverifiedEmail_Throws()
+    {
+        await using var db = CreateDb();
+        var google = new FakeGoogleIdTokenValidator().Register(
+            "valid-token", new GoogleUserInfo("google-sub-4", "unverified@gmail.com", false, null));
+        var service = CreateService(db, google);
+
+        await Assert.ThrowsAsync<AuthenticationException>(() =>
+            service.GoogleLoginAsync("valid-token", CancellationToken.None));
+
+        Assert.Equal(0, await db.Users.CountAsync());
+    }
+
+    [Fact]
+    public async Task GoogleLoginAsync_InvalidToken_Throws()
+    {
+        await using var db = CreateDb();
+        var service = CreateService(db, new FakeGoogleIdTokenValidator());
+
+        await Assert.ThrowsAsync<AuthenticationException>(() =>
+            service.GoogleLoginAsync("not-a-registered-token", CancellationToken.None));
+    }
+
+    [Fact]
+    public async Task LoginAsync_GoogleOnlyAccount_ThrowsInsteadOfCrashingOnEmptyPasswordHash()
+    {
+        await using var db = CreateDb();
+        var google = new FakeGoogleIdTokenValidator().Register(
+            "valid-token", new GoogleUserInfo("google-sub-5", "googleonly@gmail.com", true, null));
+        var service = CreateService(db, google);
+        await service.GoogleLoginAsync("valid-token", CancellationToken.None);
+
+        await Assert.ThrowsAsync<AuthenticationException>(() =>
+            service.LoginAsync("googleonly@gmail.com", "AnyPassword1!", CancellationToken.None));
     }
 }

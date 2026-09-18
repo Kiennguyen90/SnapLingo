@@ -9,8 +9,10 @@ using SnapLingo.Application.Auth;
 using SnapLingo.Application.Media;
 using SnapLingo.Infrastructure.Ai;
 using SnapLingo.Infrastructure.Audio;
+using SnapLingo.Application.Music;
 using SnapLingo.Infrastructure.Auth;
 using SnapLingo.Infrastructure.Common;
+using SnapLingo.Infrastructure.Music;
 using SnapLingo.Infrastructure.OpenAi;
 using SnapLingo.Infrastructure.Persistence;
 using SnapLingo.Infrastructure.Storage;
@@ -42,11 +44,17 @@ public static class DependencyInjection
         services.Configure<AudioOptions>(configuration.GetSection(AudioOptions.SectionName));
         services.Configure<JwtOptions>(configuration.GetSection(JwtOptions.SectionName));
         services.Configure<OpenAiOptions>(configuration.GetSection(OpenAiOptions.SectionName));
+        services.Configure<GoogleAuthOptions>(configuration.GetSection(GoogleAuthOptions.SectionName));
 
         services.AddSingleton<SignedUrlSigner>();
         services.AddSingleton<IObjectStorage, LocalObjectStorage>();
         services.AddSingleton<IDateTimeProvider, SystemDateTimeProvider>();
         services.AddSingleton<ITokenService, JwtTokenService>();
+
+        // Scoped, not Singleton, for the same captive-dependency reason as OpenAiClient below:
+        // it depends on the typed HttpClient AddHttpClient registers.
+        services.AddHttpClient<GoogleIdTokenValidator>();
+        services.AddScoped<IGoogleIdTokenValidator, GoogleIdTokenValidator>();
 
         // Phase 4: ILessonGenerator is real OpenAI when an API key is configured (local
         // `dotnet user-secrets`, or OpenAi__ApiKey in real deployments), and falls back to the
@@ -73,6 +81,9 @@ public static class DependencyInjection
 
         // TTS is still Phase 5 / fake regardless of the OpenAI switch above.
         services.AddSingleton<ITextToSpeechService, FakeTextToSpeechService>();
+
+        // Background music adapter: fake today, same swap-in-a-real-provider-later shape as TTS.
+        services.AddSingleton<IBackgroundMusicService, FakeBackgroundMusicService>();
 
         return services;
     }

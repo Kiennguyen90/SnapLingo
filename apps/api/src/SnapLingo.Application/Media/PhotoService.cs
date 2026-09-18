@@ -1,4 +1,5 @@
 using System.Security.Cryptography;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.Formats;
@@ -14,6 +15,8 @@ namespace SnapLingo.Application.Media;
 
 public sealed record UploadPhotoResult(Photo Photo, string SignedUrl);
 
+public sealed record PhotoDetail(Photo Photo, string SignedUrl, PhotoMusicAsset? Music, string? MusicSignedUrl);
+
 /// <summary>
 /// Implements FR-01 + the Phase 2 upload contract: validate → strip EXIF/GPS → hash →
 /// store → persist metadata. PostgreSQL never sees the binary, only the object key
@@ -26,6 +29,23 @@ public sealed class PhotoService(
     IOptions<PhotoOptions> options)
 {
     private readonly PhotoOptions _options = options.Value;
+
+    /// <summary>GET /photos/{id}: the photo plus its current background-music track, if one has
+    /// been attached via <c>PhotoMusicService</c> — the two other new-feature responses
+    /// (<c>POST /photos/{id}/music</c> and <c>POST /lessons/{id}/audio</c>) hand out their own
+    /// signed URLs at creation time, but this is the read-back path for "what's on this photo now".</summary>
+    public async Task<PhotoDetail> GetAsync(Guid userId, Guid photoId, CancellationToken ct)
+    {
+        var photo = await db.Photos.FirstOrDefaultAsync(p => p.Id == photoId && p.UserId == userId, ct)
+            ?? throw new NotFoundException("Photo not found.");
+
+        var music = await db.PhotoMusicAssets.FirstOrDefaultAsync(m => m.PhotoId == photoId, ct);
+
+        var signedUrl = storage.GetSignedUrl(photo.ObjectKey, TimeSpan.FromMinutes(15));
+        var musicSignedUrl = music is null ? null : storage.GetSignedUrl(music.ObjectKey, TimeSpan.FromMinutes(15));
+
+        return new PhotoDetail(photo, signedUrl, music, musicSignedUrl);
+    }
 
     public async Task<UploadPhotoResult> UploadAsync(
         Guid userId,

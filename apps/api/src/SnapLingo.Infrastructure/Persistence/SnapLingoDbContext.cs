@@ -13,6 +13,7 @@ public class SnapLingoDbContext(DbContextOptions<SnapLingoDbContext> options) : 
     public DbSet<Vocabulary> Vocabularies => Set<Vocabulary>();
     public DbSet<LessonVocabulary> LessonVocabularies => Set<LessonVocabulary>();
     public DbSet<AudioAsset> AudioAssets => Set<AudioAsset>();
+    public DbSet<PhotoMusicAsset> PhotoMusicAssets => Set<PhotoMusicAsset>();
     public DbSet<UserVocabularyProgress> UserVocabularyProgresses => Set<UserVocabularyProgress>();
     public DbSet<ReviewEvent> ReviewEvents => Set<ReviewEvent>();
     public DbSet<AiGenerationLog> AiGenerationLogs => Set<AiGenerationLog>();

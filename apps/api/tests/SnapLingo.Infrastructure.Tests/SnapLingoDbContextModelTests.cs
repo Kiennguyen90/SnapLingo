@@ -28,6 +28,7 @@ public class SnapLingoDbContextModelTests
         Assert.Contains(typeof(Vocabulary), entityTypes);
         Assert.Contains(typeof(LessonVocabulary), entityTypes);
         Assert.Contains(typeof(AudioAsset), entityTypes);
+        Assert.Contains(typeof(PhotoMusicAsset), entityTypes);
         Assert.Contains(typeof(UserVocabularyProgress), entityTypes);
         Assert.Contains(typeof(ReviewEvent), entityTypes);
         Assert.Contains(typeof(AiGenerationLog), entityTypes);

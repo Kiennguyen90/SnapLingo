@@ -5,6 +5,7 @@ using SnapLingo.Application.Auth;
 using SnapLingo.Application.Emotion;
 using SnapLingo.Application.Lessons;
 using SnapLingo.Application.Media;
+using SnapLingo.Application.Music;
 using SnapLingo.Application.Review;
 using SnapLingo.Application.Users;
 using SnapLingo.Domain.Entities;
@@ -22,6 +23,7 @@ public static class DependencyInjection
         services.AddScoped<PhotoService>();
         services.AddScoped<LessonService>();
         services.AddScoped<AudioService>();
+        services.AddScoped<PhotoMusicService>();
         services.AddScoped<ReviewService>();
 
         return services;

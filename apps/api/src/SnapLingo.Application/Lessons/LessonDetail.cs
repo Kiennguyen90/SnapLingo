@@ -38,6 +38,7 @@ public sealed record LessonDetail(
     IReadOnlyList<GeneratedQuizItem> Quiz,
     string? StoryAudioUrl,
     string? DialogueAudioUrl,
+    string? StoryAudioViUrl,
     DateTimeOffset CreatedAt);
 
 public sealed record LessonSummary(

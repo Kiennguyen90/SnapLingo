@@ -28,6 +28,14 @@ public static class AuthEndpoints
         .Produces<AuthResponse>()
         .AllowAnonymous();
 
+        group.MapPost("/google", async (GoogleLoginRequest request, AuthService authService, CancellationToken ct) =>
+        {
+            var result = await authService.GoogleLoginAsync(request.IdToken, ct);
+            return Results.Ok(ToResponse(result));
+        })
+        .Produces<AuthResponse>()
+        .AllowAnonymous();
+
         return app;
     }
 

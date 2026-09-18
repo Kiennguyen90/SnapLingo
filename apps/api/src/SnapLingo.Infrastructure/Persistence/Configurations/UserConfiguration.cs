@@ -13,6 +13,10 @@ public class UserConfiguration : IEntityTypeConfiguration<User>
         builder.Property(u => u.Email).IsRequired().HasMaxLength(320);
         builder.HasIndex(u => u.Email).IsUnique();
         builder.Property(u => u.PasswordHash).IsRequired().HasMaxLength(500);
+        builder.Property(u => u.GoogleId).HasMaxLength(50);
+        // Postgres unique indexes treat NULL as distinct, so email/password-only users (GoogleId
+        // null) never collide with each other here.
+        builder.HasIndex(u => u.GoogleId).IsUnique();
         builder.Property(u => u.DisplayName).HasMaxLength(200);
         builder.Property(u => u.CefrLevel).IsRequired().HasMaxLength(10);
         builder.Property(u => u.NativeLanguage).HasMaxLength(20);

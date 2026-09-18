@@ -1,7 +1,9 @@
 using SnapLingo.Application.Abstractions;
 using SnapLingo.Application.Common;
 using SnapLingo.Application.Media;
+using SnapLingo.Application.Music;
 using SnapLingo.Contracts.Responses;
+using SnapLingo.Domain.Enums;
 
 namespace SnapLingo.Api.Endpoints;
 
@@ -40,6 +42,43 @@ public static class PhotosEndpoints
         .Accepts<IFormFile>("multipart/form-data")
         .Produces<PhotoResponse>(StatusCodes.Status201Created);
 
+        group.MapGet("/{id:guid}", async (
+            Guid id,
+            PhotoService photoService,
+            ICurrentUserService currentUser,
+            CancellationToken ct) =>
+        {
+            var detail = await photoService.GetAsync(currentUser.UserId, id, ct);
+            return Results.Ok(ToResponse(detail));
+        })
+        .Produces<PhotoResponse>();
+
+        // Attaches (or re-attaches, for a different mood) a background-music track to the
+        // photo. Defaults to Calm when no mood is given, since background music should stay
+        // unobtrusive unless the caller deliberately asks for a livelier one.
+        group.MapPost("/{id:guid}/music", async (
+            Guid id,
+            EmotionType? mood,
+            PhotoMusicService photoMusicService,
+            ICurrentUserService currentUser,
+            CancellationToken ct) =>
+        {
+            var (asset, signedUrl) = await photoMusicService.GetOrCreateAsync(
+                currentUser.UserId, id, mood ?? EmotionType.Calm, ct);
+
+            return Results.Ok(new PhotoMusicResponse(asset.PhotoId, asset.Mood, asset.DurationMs, signedUrl));
+        })
+        .Produces<PhotoMusicResponse>();
+
         return app;
     }
+
+    private static PhotoResponse ToResponse(PhotoDetail d) => new(
+        d.Photo.Id,
+        d.Photo.MimeType,
+        d.Photo.Sha256,
+        d.Photo.TakenAt,
+        d.Photo.CreatedAt,
+        d.SignedUrl,
+        d.Music is null ? null : new PhotoMusicResponse(d.Music.PhotoId, d.Music.Mood, d.Music.DurationMs, d.MusicSignedUrl!));
 }

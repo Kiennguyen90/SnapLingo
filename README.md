@@ -59,7 +59,8 @@ Mọi request tới `photos`/`lessons`/`reviews`/`users` đều cần JWT Bearer
 
 1. `POST /api/v1/auth/register` — `{ email, password, displayName?, cefrLevel?, nativeLanguage? }` → trả `accessToken`.
 2. `POST /api/v1/auth/login` — `{ email, password }` → trả `accessToken` (hết hạn sau `Jwt:AccessTokenMinutes`, mặc định 60 phút).
-3. Gửi kèm mọi request khác: header `Authorization: Bearer <accessToken>`.
+3. `POST /api/v1/auth/google` — `{ idToken }` → trả `accessToken` cùng shape với 2 endpoint trên (xem mục "Đăng nhập Google" dưới).
+4. Gửi kèm mọi request khác: header `Authorization: Bearer <accessToken>`.
 
 Tài khoản demo được seed sẵn để test ngay không cần đăng ký:
 **`demo@snaplingo.dev` / `Demo123!`**.
@@ -67,13 +68,65 @@ Tài khoản demo được seed sẵn để test ngay không cần đăng ký:
 Trong Swagger UI (`/swagger`), bấm nút **Authorize** và dán access token vào
 để test các endpoint cần đăng nhập trực tiếp trên UI.
 
+### Đăng nhập Google
+
+Theo đúng flow ID-token chuẩn cho app mobile (Flutter/Android là target chính
+của SnapLingo): client dùng Google Sign-In SDK để lấy **ID token**, gửi
+nguyên token đó cho backend — backend không bao giờ thấy mật khẩu Google của
+người dùng.
+
+- **`IGoogleIdTokenValidator`** (`GoogleIdTokenValidator` trong
+  Infrastructure) verify chữ ký RS256 của token so với bộ public key Google
+  công bố ở `GoogleAuth:CertsUrl` (mặc định
+  `https://www.googleapis.com/oauth2/v3/certs`, cache
+  `GoogleAuth:CertsCacheMinutes` phút), kiểm tra `issuer`/`audience`/hết hạn
+  bằng chính `System.IdentityModel.Tokens.Jwt` đã dùng cho JWT nội bộ — không
+  thêm SDK Google riêng (cùng triết lý "HttpClient thuần" với `OpenAiClient`).
+  Audience phải khớp 1 trong `GoogleAuth:AllowedClientIds` (mỗi platform
+  Android/iOS/Web có client ID riêng từ Google Cloud Console).
+- **`AuthService.GoogleLoginAsync`** — tìm user theo `GoogleId`; nếu chưa có
+  nhưng đã tồn tại user với cùng email (đăng ký bằng mật khẩu trước đó) thì
+  **link** `GoogleId` vào user đó (không tạo trùng); nếu chưa tồn tại luôn
+  thì tạo user mới không có mật khẩu (`PasswordHash = ""`). Bắt buộc
+  `email_verified = true` từ Google, và nếu email đã bị link với 1 Google
+  account khác thì từ chối (chống chiếm đoạt tài khoản qua email trùng).
+- User chỉ đăng nhập bằng Google (chưa từng đặt mật khẩu) gọi
+  `POST /auth/login` bằng mật khẩu sẽ nhận lỗi 401 rõ ràng thay vì đăng nhập
+  được bằng mật khẩu rỗng.
+- **Cấu hình**: đặt `GoogleAuth:AllowedClientIds` (mảng client ID lấy từ
+  Google Cloud Console) qua `appsettings.json`/`dotnet user-secrets`/env
+  `GoogleAuth__AllowedClientIds__0`. Để trống → `POST /auth/google` trả lỗi
+  401 "chưa cấu hình", không crash server.
+
 ### Lesson song ngữ (Anh–Việt)
 
 Mọi phần nội dung học (scene, story, dialogue, quiz, ví dụ từ vựng) đều có
 2 phiên bản `*En`/`*Vi`, sinh cùng lúc trong 1 lần gọi AI adapter (không tách
-bước dịch riêng) để tiết kiệm chi phí và tránh lệch nghĩa. Audio chỉ đọc bản
-tiếng Anh (mục đích luyện phát âm). Riêng đáp án/lựa chọn quiz giữ nguyên
-tiếng Anh vì đang kiểm tra đúng từ vựng tiếng Anh.
+bước dịch riêng) để tiết kiệm chi phí và tránh lệch nghĩa. Dialogue audio chỉ
+đọc bản tiếng Anh (mục đích luyện phát âm); story audio đọc **cả 2 bản** (xem
+mục dưới). Riêng đáp án/lựa chọn quiz giữ nguyên tiếng Anh vì đang kiểm tra
+đúng từ vựng tiếng Anh.
+
+### Nhạc nền cho ảnh & audio story song ngữ
+
+Hai adapter mới theo cùng khuôn `ILessonGenerator`/`ITextToSpeechService`
+(interface ở Application, fake ở Infrastructure, đổi implementation không
+cần sửa code gọi):
+
+- **`IBackgroundMusicService`** (`PhotoMusicService`) — gắn 1 track nhạc nền
+  cho mỗi ảnh, chọn theo `emotion` (`POST /photos/{id}/music?emotion=Happy`,
+  mặc định `Calm` để nhạc nền không lấn lướt). Cache theo hash
+  `(model, mood)`: cùng ảnh gọi lại cùng mood → không tổng hợp lại; hai ảnh
+  khác nhau cùng mood → dùng lại chung file trong object storage (giống cơ
+  chế cache của `AudioService`). Mỗi ảnh chỉ giữ 1 track "hiện tại" — đổi
+  mood sẽ ghi đè. `FakeBackgroundMusicService` tạo 1 tone sóng sin xác định
+  theo mood (không cần thư viện nhạc ngoài) làm placeholder cho một provider
+  nhạc AI thật sau này.
+- **Story audio song ngữ** — `POST /lessons/{id}/audio` giờ trả thêm
+  `storyViUrl`: cùng nội dung story, đọc bằng giọng tiếng Việt riêng
+  (`Audio:VietnameseVoice` trong config), lưu ở `audio_assets` với
+  `kind = "story_vi"` (tách khỏi `"story"` tiếng Anh nên không đụng cache
+  cũ). Dialogue vẫn chỉ tiếng Anh như trước.
 
 ### Khi nào gọi AI, khi nào chỉ load lại
 
@@ -94,11 +147,13 @@ AI. `POST /lessons/{id}/regenerate` luôn gọi AI bất kể cache (đây là h
 | GET | `/users/me` | Có | Thông tin profile của user đang đăng nhập |
 | PATCH | `/users/me` | Có | Cập nhật displayName/CEFR/nativeLanguage |
 | POST | `/photos` | Có | multipart/form-data; validate MIME/magic-byte/size, strip EXIF/GPS, trả `photoId` + signed URL |
+| GET | `/photos/{id}` | Có | Lấy lại ảnh + nhạc nền hiện tại (`music: null` nếu chưa gắn) |
+| POST | `/photos/{id}/music` | Có | Gắn nhạc nền (fake) theo `emotion` (query, mặc định `Calm`) cho ảnh, cache theo mood+model |
 | POST | `/lessons` | Có | Sinh lesson từ `photoId` + `emotion` (fake AI adapter theo `EmotionPolicy`) |
 | GET | `/lessons/{id}` | Có | Lesson đầy đủ (scene/vocabulary/story/dialogue/quiz/audio) |
 | GET | `/lessons?page=&pageSize=` | Có | Lịch sử lesson của user đang đăng nhập |
 | POST | `/lessons/{id}/regenerate` | Có | Cùng ảnh, emotion khác, tăng `version` |
-| POST | `/lessons/{id}/audio` | Có | Sinh audio story/dialogue on-demand (fake TTS), cache theo hash |
+| POST | `/lessons/{id}/audio` | Có | Sinh audio story (Anh + Việt) và dialogue (Anh) on-demand (fake TTS), cache theo hash |
 | GET | `/reviews/today` | Có | Từ vựng đến hạn ôn, kèm ảnh gốc làm memory anchor |
 | POST | `/reviews/{vocabularyId}/answer` | Có | Gửi `Forgot/Hard/Good/Easy`, cập nhật lịch ôn 1-3-7-14 ngày |
 | DELETE | `/lessons/{id}` | Có | Xóa lesson (thu hồi quyền truy cập audio của lesson đó) |
@@ -147,12 +202,14 @@ dotnet run --project src/SnapLingo.Api
 Cấu trúc solution theo đúng đặc tả: `SnapLingo.Domain` (entities/enums/value
 objects thuần, không phụ thuộc EF) → `SnapLingo.Application` (use-case
 services: `AuthService`, `UserService`, `PhotoService`, `LessonService`,
-`AudioService`, `ReviewService`, `EmotionPolicy`, `PromptBuilder`, và các
-interface `ITokenService`/`ILessonGenerator`/`ITextToSpeechService`/
+`AudioService`, `PhotoMusicService`, `ReviewService`, `EmotionPolicy`,
+`PromptBuilder`, và các interface `ITokenService`/`ILessonGenerator`/
+`ITextToSpeechService`/`IBackgroundMusicService`/`IGoogleIdTokenValidator`/
 `IObjectStorage` mà Infrastructure implement) → `SnapLingo.Infrastructure`
 (EF Core DbContext, configurations, migrations, Npgsql, local object
-storage, `JwtTokenService`, `FakeLessonGenerator`/`OpenAiLessonGenerator`/
-`OpenAiClient`, `FakeTextToSpeechService`) → `SnapLingo.Contracts`
+storage, `JwtTokenService`, `GoogleIdTokenValidator`, `FakeLessonGenerator`/
+`OpenAiLessonGenerator`/`OpenAiClient`, `FakeTextToSpeechService`,
+`FakeBackgroundMusicService`) → `SnapLingo.Contracts`
 (Request/Response DTO cho API) → `SnapLingo.Api` (minimal API endpoints,
 JWT bearer auth, exception handling, Swagger, health check).
 

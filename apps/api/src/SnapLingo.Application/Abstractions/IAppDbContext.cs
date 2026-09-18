@@ -17,6 +17,7 @@ public interface IAppDbContext
     DbSet<Vocabulary> Vocabularies { get; }
     DbSet<LessonVocabulary> LessonVocabularies { get; }
     DbSet<AudioAsset> AudioAssets { get; }
+    DbSet<PhotoMusicAsset> PhotoMusicAssets { get; }
     DbSet<UserVocabularyProgress> UserVocabularyProgresses { get; }
     DbSet<ReviewEvent> ReviewEvents { get; }
     DbSet<AiGenerationLog> AiGenerationLogs { get; }

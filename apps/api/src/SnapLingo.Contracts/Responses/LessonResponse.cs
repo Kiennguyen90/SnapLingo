@@ -35,7 +35,9 @@ public sealed record QuizItemResponse(
     string? ExplanationEn,
     string? ExplanationVi);
 
-public sealed record LessonAudioResponse(string? StoryUrl, string? DialogueUrl);
+// StoryUrl/DialogueUrl read the English text (pronunciation practice); StoryViUrl narrates the
+// same story in Vietnamese so a learner can hear the meaning before/after the English take.
+public sealed record LessonAudioResponse(string? StoryUrl, string? DialogueUrl, string? StoryViUrl);
 
 public sealed record LessonResponse(
     Guid LessonId,
