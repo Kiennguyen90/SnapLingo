@@ -363,7 +363,25 @@ class _FeaturedLessonCard extends StatelessWidget {
           Stack(
             children: [
               RemotePhoto(photoId: lesson.photoId, height: 180, width: double.infinity, radius: 0),
-              Positioned(left: 12, bottom: 12, child: EmotionChip(lesson.emotion)),
+              if (lesson.emotion case final emotion?)
+                Positioned(left: 12, bottom: 12, child: EmotionChip(emotion)),
+              if (lesson.grounding case final g? when g.verified)
+                Positioned(
+                  right: 12,
+                  bottom: 12,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(color: AppColors.surface, borderRadius: BorderRadius.circular(12)),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.verified_rounded, size: 14, color: AppColors.success),
+                        const SizedBox(width: 4),
+                        Text('Đã kiểm chứng', style: text.labelSmall?.copyWith(color: AppColors.success)),
+                      ],
+                    ),
+                  ),
+                ),
             ],
           ),
           Padding(

@@ -13,6 +13,8 @@ public class PhotoConfiguration : IEntityTypeConfiguration<Photo>
         builder.Property(p => p.ObjectKey).IsRequired().HasMaxLength(500);
         builder.Property(p => p.MimeType).IsRequired().HasMaxLength(100);
         builder.Property(p => p.Sha256).IsRequired().HasMaxLength(64);
+        builder.Property(p => p.Note).HasMaxLength(280);
+        builder.Property(p => p.ActivityTag).HasMaxLength(50);
 
         builder.HasOne(p => p.User)
             .WithMany()

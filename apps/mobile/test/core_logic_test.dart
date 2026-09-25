@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:snaplingo/core/models/emotion.dart';
 import 'package:snaplingo/core/models/lesson.dart';
 import 'package:snaplingo/core/network/api_client.dart';
+import 'package:snaplingo/core/services/photo_service.dart';
 import 'package:snaplingo/core/utils/learning_stats.dart';
 import 'package:snaplingo/core/widgets/highlighted_text.dart';
 
@@ -60,6 +61,88 @@ void main() {
       expect(lesson.status, LessonStatus.pending);
       expect(lesson.vocabulary, isEmpty);
       expect(lesson.audio.isEmpty, isTrue);
+    });
+  });
+
+  group('Grounded lesson JSON', () {
+    test('parses sentences with verdicts and sources, grounding, context and patterns', () {
+      final lesson = Lesson.fromJson({
+        'lessonId': 'l1',
+        'photoId': 'p1',
+        'status': 'completed',
+        'input': {'emotion': null, 'cefrLevel': 'A2'},
+        'story': {
+          'titleEn': 'A Sunday morning',
+          'titleVi': 'Sáng Chủ nhật',
+          'textEn': 'x',
+          'textVi': 'y',
+          'sentences': [
+            {
+              'en': 'On weekdays, I often come here.',
+              'vi': 'Ngày thường tôi hay đến đây.',
+              'label': 'grounded',
+              'hedged': false,
+              'sources': [
+                {'code': 'H1', 'source': 'memory', 'displayVi': 'Thói quen: 3 lần'}
+              ],
+            },
+            {'en': 'It seems like a slow morning.', 'vi': 'Có vẻ là buổi sáng chậm rãi.', 'label': 'inferred', 'hedged': true, 'sources': []},
+          ],
+        },
+        'patterns': [
+          {'pattern': 'On weekdays, I often + V', 'nameVi': 'Thói quen', 'explanationVi': 'e', 'exampleEn': 'a', 'exampleVi': 'b'}
+        ],
+        'grounding': {
+          'mode': 'multiSource', 'memoryMode': 'personal', 'regenerations': 1, 'claims': 5, 'grounded': 4,
+          'inferred': 1, 'unsupportedFound': 1, 'droppedSentences': 0, 'hedgedSentences': 0,
+        },
+        'context': {
+          'capturedAtLocal': '2026-09-27T08:30:00+07:00',
+          'memoryEventsUsed': 3,
+          'habitsVi': ['Thói quen: 3 lần'],
+          'changesVi': [],
+          'peopleVi': [],
+          'unlabeledPeopleCount': 1,
+        },
+        'feedback': {'satisfaction': 5, 'usefulness': null},
+        'vocabulary': [
+          {'vocabularyId': 'v1', 'word': 'usual', 'saved': true}
+        ],
+      });
+
+      expect(lesson.emotion, isNull);
+      expect(lesson.story!.sentences, hasLength(2));
+      expect(lesson.story!.sentences.first.label, ClaimLabel.grounded);
+      expect(lesson.story!.sentences.first.sources.single.kind, EvidenceKind.memory);
+      expect(lesson.story!.sentences.last.hedged, isTrue);
+      expect(lesson.patterns.single.pattern, startsWith('On weekdays'));
+      expect(lesson.grounding!.verified, isTrue);
+      expect(lesson.grounding!.usedMemory, isTrue);
+      expect(lesson.grounding!.groundedRatio, closeTo(0.8, 1e-9));
+      // Wall-clock time as the learner lived it, whatever the device's zone.
+      expect(lesson.context!.capturedAtLocal, DateTime(2026, 9, 27, 8, 30));
+      expect(lesson.context!.unlabeledPeopleCount, 1);
+      expect(lesson.feedback!.satisfaction, 5);
+      expect(lesson.vocabulary.single.saved, isTrue);
+    });
+
+    test('older lessons without a sentence list show the whole story as one sentence', () {
+      final story = Story.fromJson({'titleEn': 't', 'titleVi': 't', 'textEn': 'Hello there.', 'textVi': 'Xin chào.'});
+
+      expect(story.sentences.single.en, 'Hello there.');
+      expect(story.sentences.single.label, isNull);
+    });
+
+    test('capture time is sent with the device UTC offset', () {
+      final local = DateTime(2026, 9, 27, 8, 30);
+      final iso = PhotoService.isoWithOffset(local);
+      final offset = local.timeZoneOffset;
+      final sign = offset.isNegative ? '-' : '+';
+      final hh = offset.inHours.abs().toString().padLeft(2, '0');
+      final mm = (offset.inMinutes.abs() % 60).toString().padLeft(2, '0');
+
+      expect(iso, '2026-09-27T08:30:00$sign$hh:$mm');
+      expect(DateTime.parse(iso).toUtc(), local.toUtc());
     });
   });
 

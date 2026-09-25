@@ -2,22 +2,65 @@
 
 AI-powered multisensory English learning from everyday photos.
 
-Người dùng chụp một bức ảnh + chọn 1 trong 6 trạng thái cảm xúc (Happy, Calm,
-Curious, Excited, Tired, Sad) → AI tạo scene summary, từ vựng, mini-story,
-hội thoại, quiz và audio (TTS) → lưu lại cùng ảnh gốc để ôn tập bằng spaced
-repetition, dùng chính ảnh làm "memory anchor".
+Người học chụp ảnh sinh hoạt hằng ngày (kèm thời gian chụp, ghi chú/hoạt động và
+— nếu tự bật — nhãn người thân) → hệ thống sinh một **câu chuyện song ngữ
+Việt–Anh có căn cứ**, gắn với thói quen và ký ức của chính người học, kèm từ
+vựng, cấu trúc câu, hội thoại, quiz và audio → **mỗi câu được kiểm chứng** với
+ảnh, bộ nhớ, metadata và nhãn người trước khi hiển thị → ôn tập bằng spaced
+repetition với chính bức ảnh làm "memory anchor".
 
-> Photo + Selected Emotion + Learner Profile → AI Lesson → Audio → Practice → Memory Review
+> Photo + Metadata + Personal Memory → Evidence → Story → Multi-source Verification → Practice → Review
+
+Thiết kế hiện tại theo đề cương luận văn
+`SnapLingo_Design/Proposal_SnapLingo_NoEmotion_Full.docx` ("Sinh câu chuyện học
+tiếng Anh cá nhân hóa từ ảnh đời thường, có căn cứ dữ kiện và bộ nhớ cá nhân dài
+hạn"). **Tính năng chọn cảm xúc** của thiết kế cũ được giữ lại trong code như
+một tính năng chờ phát triển sau — tắt mặc định (`Features:EmotionSelection`,
+và `--dart-define=EMOTION_SELECTION=true` ở app).
 
 ## Trạng thái dự án
 
 Backend API đã xong Phase 1–4 theo roadmap trong đặc tả: domain + database +
 migrations, **auth thật (đăng ký/đăng nhập + JWT)**, upload ảnh
-(validate/strip EXIF/SHA-256), emotion policy, **lesson generation bằng GPT-4o
-thật (vision + Structured Outputs)** — có fallback sang fake adapter nếu chưa
-config API key — và API tạo/xem/liệt kê/regenerate/xóa lesson + review (spaced
-repetition). TTS vẫn còn fake (Phase 5, xem bên dưới). Chuẩn bị build bản
-Android prototype để khảo sát người dùng trước khi triển khai production.
+(validate/strip EXIF/SHA-256), **lesson generation bằng GPT-4o thật (vision +
+Structured Outputs)** — có fallback sang fake adapter nếu chưa config API key —
+và API tạo/xem/liệt kê/regenerate/xóa lesson + review (spaced repetition).
+Đã chuyển sang **pipeline câu chuyện có căn cứ + bộ nhớ cá nhân** theo đề cương
+(mục dưới); cần chạy migration `GroundedMemoryStory`. TTS vẫn còn fake (Phase 5).
+App Android (Flutter) ở `apps/mobile`.
+
+### Câu chuyện có căn cứ & bộ nhớ cá nhân (theo đề cương)
+
+`LessonService` chạy đủ 5 module của đề cương (mục 5.2–5.4) cho mỗi bài học:
+
+| Module | Code | Việc làm |
+| --- | --- | --- |
+| 1 · Visual Understanding & Event Extraction | `IEventExtractor` (`OpenAiEventExtractor` / `FakeEventExtractor`) | Ảnh → bản ghi sự kiện: cảnh, `placeKey`, đồ vật, hoạt động, số người. Lưu 1 lần/ảnh vào `photo_events` |
+| 2 · Personal Multimodal Memory | `MemoryService` + `ITextEmbedder` | Embedding + giờ địa phương cho mỗi sự kiện; truy xuất top‑k sự kiện **trong quá khứ** theo điểm kết hợp ngữ nghĩa + độ gần thời gian + mức lặp lại cùng địa điểm |
+| 3 · Temporal Modeling | `TemporalAnalyzer` (thuần, không I/O) | Thói quen (≥3 lần cùng nơi, cùng khung giờ trong 28 ngày) và thay đổi ngữ cảnh (cuối tuần vs ngày thường, lệch giờ, thiếu/mới đồ vật) |
+| 4a · Story Generator | `ILessonGenerator` + `PromptBuilder` (`lesson-v2.0.0`) | Nhận danh sách căn cứ có mã (`I` ảnh, `T/N/A` metadata, `M` ký ức, `H` thói quen, `C` thay đổi, `P/U` người) → story song ngữ **từng câu kèm mã căn cứ**, từ vựng, cấu trúc câu, hội thoại, quiz |
+| 4b · Multi-source Grounding Verifier | `GroundingVerifier` = `IClaimJudge` (model tách/đánh giá phát biểu, có nhìn ảnh) + `ClaimRules` (luật: thời gian, nhãn người, thói quen) | Gắn nhãn *có căn cứ / suy luận / không có căn cứ*; câu không có căn cứ được gửi lại để sinh lại (tối đa `MaxRegenerations`), còn lại thì **loại**; suy luận chưa rào đón thì thêm "It seems that…" |
+| 5 · Personalization & Satisfaction | `POST /lessons/{id}/feedback`, lưu từ ôn tập | Phản hồi một chạm 1–5 (hài lòng, hữu ích); người học **tự chọn** từ để ôn (không còn tự thêm mọi từ) |
+
+Mỗi bài học lưu kèm `evidence_json` (danh sách căn cứ) và `grounding_json`
+(báo cáo kiểm chứng: từng câu, từng phát biểu, nguồn, hành động, số liệu vòng
+đầu/vòng cuối) để phân tích RQ1–RQ4. Điều kiện thí nghiệm được cấu hình trong
+`StoryPipeline` và ghi lên từng lesson (`MemoryMode`, `VerifierMode`):
+`MemoryMode = None|Personal` (E2), `VerifierMode = None|ImageOnly|MultiSource`
+(E3), `Assignment = AlternateWithBaseline` để luân phiên phiên bản gốc/đề xuất
+theo từng bài cho cùng người dùng (E5).
+
+**Nhãn người (opt-in, mục 3.4):** dùng phương án dự phòng của đề cương — người
+học tự gắn nhãn người trong ảnh (`/people`, `PUT /photos/{id}/people`); không
+lưu ảnh hay vector khuôn mặt, không bao giờ đoán danh tính người lạ. Story chỉ
+được nhắc tên/quan hệ của người đã gắn nhãn; người chưa gắn nhãn chỉ được mô
+tả chung chung có rào đón, và app hỏi "Người này là ai?" để viết lại. Xóa một
+người sẽ xóa mọi nhãn của họ. `PATCH /users/me` có `personLabelingEnabled` và
+`researchConsent` (đồng ý tham gia nghiên cứu).
+
+Không có OpenAI key, toàn bộ pipeline vẫn chạy bằng adapter giả xác định
+(`FakeEventExtractor`, `FakeLessonGenerator`, `CitationClaimJudge`) và một
+embedder thật nhưng miễn phí (`HashingTextEmbedder`).
 
 ### AI thật (GPT-4o) — Phase 4
 
@@ -132,9 +175,9 @@ cần sửa code gọi):
 
 `POST /lessons` sẽ **tái dùng lesson đã có** thay vì gọi AI lại nếu tồn tại
 lesson `Completed` với đúng bộ `(user, photo, emotion, cefrLevel,
-nativeLanguage, promptVersion)` — tránh tốn phí khi mở lại cùng ảnh/cảm xúc
-hoặc app retry do mất mạng. Đổi emotion/CEFR luôn tạo bộ khoá khác → luôn gọi
-AI. `POST /lessons/{id}/regenerate` luôn gọi AI bất kể cache (đây là hành
+nativeLanguage, promptVersion)` — tránh tốn phí khi app retry do mất mạng
+(emotion luôn `null` khi tính năng cảm xúc tắt). Sự kiện của ảnh (Module 1)
+cũng chỉ trích xuất một lần và dùng lại cho mọi phiên bản bài học. `POST /lessons/{id}/regenerate` luôn gọi AI bất kể cache (đây là hành
 động chủ động của user, tăng `version`). Đổi `PromptBuilder.PromptVersion`
 (vd khi schema output đổi) cũng vô hiệu hoá cache cũ một cách có chủ đích.
 
@@ -145,14 +188,21 @@ AI. `POST /lessons/{id}/regenerate` luôn gọi AI bất kể cache (đây là h
 | POST | `/auth/register` | Không | Tạo tài khoản, trả JWT ngay |
 | POST | `/auth/login` | Không | Đăng nhập, trả JWT |
 | GET | `/users/me` | Có | Thông tin profile của user đang đăng nhập |
-| PATCH | `/users/me` | Có | Cập nhật displayName/CEFR/nativeLanguage |
-| POST | `/photos` | Có | multipart/form-data; validate MIME/magic-byte/size, strip EXIF/GPS, trả `photoId` + signed URL |
+| PATCH | `/users/me` | Có | Cập nhật displayName/CEFR/nativeLanguage, `personLabelingEnabled`, `researchConsent` |
+| POST | `/photos` | Có | multipart/form-data: `file` + (tùy chọn) `capturedAt` (ISO 8601 có offset), `note`, `activityTag`; validate MIME/magic-byte/size, strip EXIF/GPS |
+| PATCH | `/photos/{id}` | Có | Sửa ghi chú / hoạt động của ảnh |
+| GET/PUT | `/photos/{id}/people` | Có | Người đã gắn nhãn trong ảnh + số người chưa gắn nhãn / thay toàn bộ nhãn |
+| GET | `/people/relations` | Có | Danh sách quan hệ cho phép (Mẹ, Em trai, Bà ngoại…) |
+| GET/POST/PATCH/DELETE | `/people[/{id}]` | Có | Người thân đã gắn nhãn (opt-in); xóa = gỡ mọi nhãn |
 | GET | `/photos/{id}` | Có | Lấy lại ảnh + nhạc nền hiện tại (`music: null` nếu chưa gắn) |
 | POST | `/photos/{id}/music` | Có | Gắn nhạc nền (fake) theo `emotion` (query, mặc định `Calm`) cho ảnh, cache theo mood+model |
-| POST | `/lessons` | Có | Sinh lesson từ `photoId` + `emotion` (fake AI adapter theo `EmotionPolicy`) |
-| GET | `/lessons/{id}` | Có | Lesson đầy đủ (scene/vocabulary/story/dialogue/quiz/audio) |
+| POST | `/lessons` | Có | Chạy pipeline có căn cứ từ `photoId` (`emotion` tùy chọn, bị bỏ qua khi tính năng tắt) |
+| GET | `/lessons/{id}` | Có | Lesson đầy đủ: story từng câu kèm nhãn + nguồn, cấu trúc câu, báo cáo kiểm chứng, ngữ cảnh, phản hồi, từ đã lưu |
 | GET | `/lessons?page=&pageSize=` | Có | Lịch sử lesson của user đang đăng nhập |
-| POST | `/lessons/{id}/regenerate` | Có | Cùng ảnh, emotion khác, tăng `version` |
+| POST | `/lessons/{id}/regenerate` | Có | Viết lại story từ cùng ảnh (vd sau khi gắn nhãn người), tăng `version` |
+| POST | `/lessons/{id}/feedback` | Có | Phản hồi một chạm `satisfaction`/`usefulness` (1–5) |
+| POST/DELETE | `/lessons/{id}/vocabulary/{vocabularyId}/save` | Có | Lưu / bỏ lưu một từ vào ôn tập |
+| POST | `/lessons/{id}/vocabulary/save-all` | Có | Lưu mọi từ của bài vào ôn tập |
 | POST | `/lessons/{id}/audio` | Có | Sinh audio story (Anh + Việt) và dialogue (Anh) on-demand (fake TTS), cache theo hash |
 | GET | `/reviews/today` | Có | Từ vựng đến hạn ôn, kèm ảnh gốc làm memory anchor |
 | POST | `/reviews/{vocabularyId}/answer` | Có | Gửi `Forgot/Hard/Good/Easy`, cập nhật lịch ôn 1-3-7-14 ngày |

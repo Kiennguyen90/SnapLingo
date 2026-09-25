@@ -26,9 +26,10 @@ public sealed class OpenAiLessonGenerator(
     public async Task<GeneratedLessonResult> GenerateAsync(GenerateLessonInput input, CancellationToken ct)
     {
         var systemPrompt = PromptBuilder.Build(input);
-        const string userText = "Analyze the attached photo now and return the JSON described in the system instructions.";
+        const string userText =
+            "Here is the learner's photo. Write the lesson from the EVIDENCE in the system instructions and return the JSON.";
 
-        var imageBytes = await ReadPhotoAsync(input.PhotoObjectKey, ct);
+        var imageBytes = await storage.ReadAllBytesAsync(input.PhotoObjectKey, ct);
 
         var response = await client.CreateStructuredChatCompletionAsync(
             systemPrompt,
@@ -53,13 +54,5 @@ public sealed class OpenAiLessonGenerator(
         }
 
         return new GeneratedLessonResult(lesson, response.InputTokens, response.OutputTokens);
-    }
-
-    private async Task<byte[]> ReadPhotoAsync(string objectKey, CancellationToken ct)
-    {
-        await using var stream = await storage.OpenReadAsync(objectKey, ct);
-        using var buffer = new MemoryStream();
-        await stream.CopyToAsync(buffer, ct);
-        return buffer.ToArray();
     }
 }

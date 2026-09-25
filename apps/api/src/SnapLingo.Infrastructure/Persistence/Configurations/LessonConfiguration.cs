@@ -13,6 +13,15 @@ public class LessonConfiguration : IEntityTypeConfiguration<Lesson>
 
         builder.Property(l => l.Emotion)
             .HasConversion<string>()
+            .HasMaxLength(20);
+
+        builder.Property(l => l.MemoryMode)
+            .HasConversion<string>()
+            .HasMaxLength(20)
+            .IsRequired();
+
+        builder.Property(l => l.VerifierMode)
+            .HasConversion<string>()
             .HasMaxLength(20)
             .IsRequired();
 

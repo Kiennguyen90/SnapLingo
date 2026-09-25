@@ -2,7 +2,10 @@
 
 App Android (Flutter) cho SnapLingo, dựng theo bộ high-fidelity mockup trong
 `SnapLingo_Design/` (12 màn hình, bộ "2.7 High-fidelity prototype") và nói
-chuyện với API trong [`apps/api`](../api).
+chuyện với API trong [`apps/api`](../api). Luồng học đã được cập nhật theo đề
+cương `Proposal_SnapLingo_NoEmotion_Full.docx`: câu chuyện có căn cứ, bộ nhớ cá
+nhân, kiểm chứng từng câu và phản hồi một chạm; **chọn cảm xúc là tính năng chờ
+phát triển** (code giữ nguyên, ẩn mặc định).
 
 ## Chạy app
 
@@ -38,19 +41,21 @@ flutter build apk --release --dart-define=API_BASE_URL=https://api.example.com
 | 01 Welcome | Onboarding 4 trang → Đăng ký / Đăng nhập | `features/auth/view/welcome_page.dart` |
 | 02 Home | Lời chào, streak, mục tiêu tuần, bài gợi ý, tiếp tục học, ôn tập hôm nay | `features/home/view/home_page.dart` |
 | 03 Capture | Camera (flash, đổi camera, zoom 0.5/1x/3), chọn ảnh thư viện | `features/capture/view/capture_page.dart` |
-| 04 Emotion | Chọn 1 trong 6 cảm xúc (Bước 2/3) | `features/create_lesson/view/emotion_page.dart` |
-| 05 AI generating | Tiến độ từng bước theo API thật (upload → sinh bài → audio) | `features/create_lesson/view/generating_page.dart` |
-| 06 Lesson overview | Khung cảnh, từ vựng chính, 3 phần học, tạo lại / xóa | `features/lesson/view/lesson_overview_page.dart` |
-| 07 Vocabulary | IPA, phát âm, nghĩa, câu ví dụ, "mỏ neo trí nhớ" | `features/lesson/view/vocabulary_page.dart` |
-| 08 Story + transcript | Audio EN/VI, tô đậm từ mới, bản dịch, hội thoại | `features/lesson/view/story_page.dart` |
+| (mới) Thêm ngữ cảnh | Bước 2/3: thời điểm chụp (sửa được), ghi chú, hoạt động, người trong ảnh (opt-in) — thay cho bước chọn cảm xúc | `features/create_lesson/view/context_page.dart` |
+| 04 Emotion | *Tính năng chờ phát triển* — chỉ hiện khi build với `--dart-define=EMOTION_SELECTION=true` | `features/create_lesson/view/emotion_page.dart` |
+| 05 AI generating | Tiến độ theo pipeline thật: tải ảnh & ngữ cảnh → ký ức & thói quen → viết câu chuyện → kiểm chứng từng câu → audio | `features/create_lesson/view/generating_page.dart` |
+| 06 Lesson overview | Khung cảnh, huy hiệu "x/y phát biểu có căn cứ", "Câu chuyện dựa trên" (thời gian, ghi chú, thói quen, thay đổi, người), từ vựng + lưu tất cả, viết lại / xóa | `features/lesson/view/lesson_overview_page.dart` |
+| 07 Vocabulary | IPA, phát âm, nghĩa, câu ví dụ, "mỏ neo trí nhớ", nút 🔖 lưu vào ôn tập | `features/lesson/view/vocabulary_page.dart` |
+| 08 Story + transcript | Từng câu có dấu kiểm chứng (✓ có căn cứ / 💡 suy luận) → chạm để xem "Vì sao có câu này?"; báo cáo kiểm chứng; cấu trúc câu; "Người này là ai?" để gắn nhãn & viết lại; chấm điểm 1–5 | `features/lesson/view/story_page.dart` |
 | 09 Quick quiz | Trắc nghiệm, phản hồi đúng/sai + giải thích | `features/lesson/view/quiz_page.dart` |
 | 10 Review | Flashcard ảnh → nghĩa → Again/Hard/Good/Easy | `features/review/view/review_page.dart` |
 | 11 Lesson history | Nhóm theo tháng, mở nhanh Từ vựng/Story/Quiz, xóa | `features/history/view/history_page.dart` |
 | 12 Accessibility | Transcript mặc định, highlight từ đang đọc, quiz chỉ text, cỡ chữ | `features/settings/view/accessibility_page.dart` |
 
-Thêm ngoài 12 màn hình: Đăng nhập/Đăng ký, Thống kê ("Tiến độ của bạn" — lấy từ
-board design đầu tiên), Cài đặt (hồ sơ, CEFR, tốc độ phát âm, bản dịch, đăng
-xuất), màn hoàn thành bài học.
+Thêm ngoài 12 màn hình: Đăng nhập/Đăng ký, Thống kê ("Tiến độ của bạn" + "Độ
+bám sát dữ kiện" và điểm phản hồi trung bình), Cài đặt (hồ sơ, CEFR, tốc độ phát
+âm, bản dịch, **gắn nhãn người thân** (opt-in) + trang "Người thân của bạn",
+**đồng ý tham gia nghiên cứu**, đăng xuất), màn hoàn thành bài học (kèm chấm điểm).
 
 ## Kiến trúc
 
@@ -83,6 +88,8 @@ lib/
 - **Audio story/hội thoại** lấy từ `POST /lessons/{id}/audio` — hiện API dùng
   TTS giả (tone sin) nên chưa nghe được giọng thật. Phát âm từng từ / câu ví dụ
   và chế độ "đọc to & tô sáng" dùng TTS trên máy (`flutter_tts`).
+- Từ vựng chỉ vào danh sách ôn tập khi người học **tự lưu** (🔖) — hành vi này
+  cũng là tín hiệu cho Module 5 của đề cương.
 - Nút ôn tập hiển thị nhãn (Quên/Khó nhớ/Nhớ/Rất dễ) thay vì khoảng thời gian
   như mockup, vì khoảng ôn thực tế phụ thuộc số lần lặp mà API không trả về.
 - **Đăng nhập Google** chưa có trên app (cần OAuth client ID Android từ Google

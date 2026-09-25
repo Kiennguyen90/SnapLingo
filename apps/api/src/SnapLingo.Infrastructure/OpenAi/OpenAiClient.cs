@@ -37,9 +37,29 @@ public sealed class OpenAiClient(HttpClient httpClient, IOptions<OpenAiOptions> 
         string? imageMimeType,
         string schemaName,
         JsonElement jsonSchema,
-        CancellationToken ct)
+        CancellationToken ct,
+        string? model = null,
+        double? temperature = null)
     {
-        var requestBody = BuildRequestBody(systemPrompt, userText, imageBytes, imageMimeType, schemaName, jsonSchema);
+        var requestBody = BuildRequestBody(
+            systemPrompt, userText, imageBytes, imageMimeType, schemaName, jsonSchema,
+            model ?? _options.Model, temperature ?? _options.Temperature);
+
+        var raw = await SendWithRetryAsync("chat/completions", requestBody, ct);
+        return ParseSuccessResponse(raw);
+    }
+
+    /// <summary>Embeds one text with the configured embedding model (Module 2 memory retrieval).</summary>
+    public async Task<float[]> CreateEmbeddingAsync(string text, CancellationToken ct)
+    {
+        var raw = await SendWithRetryAsync("embeddings", new { model = _options.EmbeddingModel, input = text }, ct);
+        using var doc = JsonDocument.Parse(raw);
+        return doc.RootElement.GetProperty("data")[0].GetProperty("embedding")
+            .EnumerateArray().Select(v => v.GetSingle()).ToArray();
+    }
+
+    private async Task<string> SendWithRetryAsync(string path, object requestBody, CancellationToken ct)
+    {
 
         for (var attempt = 1; attempt <= _options.MaxAttempts; attempt++)
         {
@@ -48,7 +68,7 @@ public sealed class OpenAiClient(HttpClient httpClient, IOptions<OpenAiOptions> 
 
             try
             {
-                using var request = new HttpRequestMessage(HttpMethod.Post, "chat/completions")
+                using var request = new HttpRequestMessage(HttpMethod.Post, path)
                 {
                     Content = JsonContent.Create(requestBody)
                 };
@@ -74,7 +94,7 @@ public sealed class OpenAiClient(HttpClient httpClient, IOptions<OpenAiOptions> 
 
             if (response.IsSuccessStatusCode)
             {
-                return ParseSuccessResponse(raw);
+                return raw;
             }
 
             var isTransient = response.StatusCode == HttpStatusCode.TooManyRequests || (int)response.StatusCode >= 500;
@@ -92,9 +112,9 @@ public sealed class OpenAiClient(HttpClient httpClient, IOptions<OpenAiOptions> 
         throw new OpenAiApiException($"OpenAI request failed after {_options.MaxAttempts} attempts.");
     }
 
-    private object BuildRequestBody(
+    private static object BuildRequestBody(
         string systemPrompt, string userText, byte[]? imageBytes, string? imageMimeType,
-        string schemaName, JsonElement jsonSchema)
+        string schemaName, JsonElement jsonSchema, string model, double temperature)
     {
         var userContent = new List<object> { new { type = "text", text = userText } };
         if (imageBytes is { Length: > 0 } && !string.IsNullOrWhiteSpace(imageMimeType))
@@ -105,8 +125,8 @@ public sealed class OpenAiClient(HttpClient httpClient, IOptions<OpenAiOptions> 
 
         return new
         {
-            model = _options.Model,
-            temperature = _options.Temperature,
+            model,
+            temperature,
             messages = new object[]
             {
                 new { role = "system", content = systemPrompt },

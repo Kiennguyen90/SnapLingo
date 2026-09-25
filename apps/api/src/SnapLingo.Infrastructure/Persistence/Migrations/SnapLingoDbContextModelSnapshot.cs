@@ -130,6 +130,10 @@ namespace SnapLingo.Infrastructure.Persistence.Migrations
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("Emotion")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<string>("MemoryMode")
                         .IsRequired()
                         .HasMaxLength(20)
                         .HasColumnType("character varying(20)");
@@ -157,6 +161,11 @@ namespace SnapLingo.Infrastructure.Persistence.Migrations
                     b.Property<Guid>("UserId")
                         .HasColumnType("uuid");
 
+                    b.Property<string>("VerifierMode")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
                     b.Property<int>("Version")
                         .HasColumnType("integer");
 
@@ -180,6 +189,15 @@ namespace SnapLingo.Infrastructure.Persistence.Migrations
                     b.Property<string>("DialogueJson")
                         .HasColumnType("jsonb");
 
+                    b.Property<string>("EvidenceJson")
+                        .HasColumnType("jsonb");
+
+                    b.Property<string>("GroundingJson")
+                        .HasColumnType("jsonb");
+
+                    b.Property<string>("PatternsJson")
+                        .HasColumnType("jsonb");
+
                     b.Property<string>("QuizJson")
                         .HasColumnType("jsonb");
 
@@ -197,6 +215,38 @@ namespace SnapLingo.Infrastructure.Persistence.Migrations
                     b.HasKey("LessonId");
 
                     b.ToTable("lesson_content", (string)null);
+                });
+
+            modelBuilder.Entity("SnapLingo.Domain.Entities.LessonFeedback", b =>
+                {
+                    b.Property<Guid>("LessonId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int?>("Satisfaction")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int?>("Usefulness")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("LessonId");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("lesson_feedback", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_lesson_feedback_satisfaction", "\"Satisfaction\" IS NULL OR \"Satisfaction\" BETWEEN 1 AND 5");
+
+                            t.HasCheckConstraint("ck_lesson_feedback_usefulness", "\"Usefulness\" IS NULL OR \"Usefulness\" BETWEEN 1 AND 5");
+                        });
                 });
 
             modelBuilder.Entity("SnapLingo.Domain.Entities.LessonVocabulary", b =>
@@ -233,7 +283,7 @@ namespace SnapLingo.Infrastructure.Persistence.Migrations
                     b.ToTable("lesson_vocabularies", (string)null);
                 });
 
-            modelBuilder.Entity("SnapLingo.Domain.Entities.Photo", b =>
+            modelBuilder.Entity("SnapLingo.Domain.Entities.Person", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
@@ -242,10 +292,49 @@ namespace SnapLingo.Infrastructure.Persistence.Migrations
                     b.Property<DateTimeOffset>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<string>("DisplayName")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("Relation")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("people", (string)null);
+                });
+
+            modelBuilder.Entity("SnapLingo.Domain.Entities.Photo", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("ActivityTag")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<DateTimeOffset?>("CapturedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<string>("MimeType")
                         .IsRequired()
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)");
+
+                    b.Property<string>("Note")
+                        .HasMaxLength(280)
+                        .HasColumnType("character varying(280)");
 
                     b.Property<string>("ObjectKey")
                         .IsRequired()
@@ -263,12 +352,92 @@ namespace SnapLingo.Infrastructure.Persistence.Migrations
                     b.Property<Guid>("UserId")
                         .HasColumnType("uuid");
 
+                    b.Property<int?>("UtcOffsetMinutes")
+                        .HasColumnType("integer");
+
                     b.HasKey("Id");
 
                     b.HasIndex("UserId", "CreatedAt")
                         .IsDescending(false, true);
 
                     b.ToTable("photos", (string)null);
+                });
+
+            modelBuilder.Entity("SnapLingo.Domain.Entities.PhotoEvent", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("ActivitiesJson")
+                        .IsRequired()
+                        .HasColumnType("jsonb");
+
+                    b.Property<double>("Confidence")
+                        .HasColumnType("double precision");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
+
+                    b.PrimitiveCollection<float[]>("Embedding")
+                        .IsRequired()
+                        .HasColumnType("real[]");
+
+                    b.Property<string>("EmbeddingModel")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("ExtractorModel")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<int>("LocalDayOfWeek")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("LocalMinuteOfDay")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("ObjectsJson")
+                        .IsRequired()
+                        .HasColumnType("jsonb");
+
+                    b.Property<DateTimeOffset>("OccurredAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("PeopleCount")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid>("PhotoId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("PlaceKey")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("Scene")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("PhotoId")
+                        .IsUnique();
+
+                    b.HasIndex("UserId", "OccurredAt");
+
+                    b.HasIndex("UserId", "PlaceKey");
+
+                    b.ToTable("photo_events", (string)null);
                 });
 
             modelBuilder.Entity("SnapLingo.Domain.Entities.PhotoMusicAsset", b =>
@@ -311,6 +480,24 @@ namespace SnapLingo.Infrastructure.Persistence.Migrations
                     b.HasIndex("TrackHash", "Model");
 
                     b.ToTable("photo_music_assets", (string)null);
+                });
+
+            modelBuilder.Entity("SnapLingo.Domain.Entities.PhotoPerson", b =>
+                {
+                    b.Property<Guid>("PhotoId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("PersonId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("PhotoId", "PersonId");
+
+                    b.HasIndex("PersonId");
+
+                    b.ToTable("photo_people", (string)null);
                 });
 
             modelBuilder.Entity("SnapLingo.Domain.Entities.ReviewEvent", b =>
@@ -384,6 +571,12 @@ namespace SnapLingo.Infrastructure.Persistence.Migrations
                         .HasMaxLength(500)
                         .HasColumnType("character varying(500)");
 
+                    b.Property<bool>("PersonLabelingEnabled")
+                        .HasColumnType("boolean");
+
+                    b.Property<DateTimeOffset?>("ResearchConsentAt")
+                        .HasColumnType("timestamp with time zone");
+
                     b.HasKey("Id");
 
                     b.HasIndex("Email")
@@ -412,10 +605,18 @@ namespace SnapLingo.Infrastructure.Persistence.Migrations
                     b.Property<int>("Repetitions")
                         .HasColumnType("integer");
 
+                    b.Property<DateTimeOffset?>("SavedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("SavedFromLessonId")
+                        .HasColumnType("uuid");
+
                     b.Property<int>("Strength")
                         .HasColumnType("integer");
 
                     b.HasKey("UserId", "VocabularyId");
+
+                    b.HasIndex("SavedFromLessonId");
 
                     b.HasIndex("VocabularyId");
 
@@ -508,6 +709,17 @@ namespace SnapLingo.Infrastructure.Persistence.Migrations
                     b.Navigation("Lesson");
                 });
 
+            modelBuilder.Entity("SnapLingo.Domain.Entities.LessonFeedback", b =>
+                {
+                    b.HasOne("SnapLingo.Domain.Entities.Lesson", "Lesson")
+                        .WithOne("Feedback")
+                        .HasForeignKey("SnapLingo.Domain.Entities.LessonFeedback", "LessonId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Lesson");
+                });
+
             modelBuilder.Entity("SnapLingo.Domain.Entities.LessonVocabulary", b =>
                 {
                     b.HasOne("SnapLingo.Domain.Entities.Lesson", "Lesson")
@@ -527,6 +739,15 @@ namespace SnapLingo.Infrastructure.Persistence.Migrations
                     b.Navigation("Vocabulary");
                 });
 
+            modelBuilder.Entity("SnapLingo.Domain.Entities.Person", b =>
+                {
+                    b.HasOne("SnapLingo.Domain.Entities.User", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("SnapLingo.Domain.Entities.Photo", b =>
                 {
                     b.HasOne("SnapLingo.Domain.Entities.User", "User")
@@ -538,6 +759,17 @@ namespace SnapLingo.Infrastructure.Persistence.Migrations
                     b.Navigation("User");
                 });
 
+            modelBuilder.Entity("SnapLingo.Domain.Entities.PhotoEvent", b =>
+                {
+                    b.HasOne("SnapLingo.Domain.Entities.Photo", "Photo")
+                        .WithMany()
+                        .HasForeignKey("PhotoId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Photo");
+                });
+
             modelBuilder.Entity("SnapLingo.Domain.Entities.PhotoMusicAsset", b =>
                 {
                     b.HasOne("SnapLingo.Domain.Entities.Photo", "Photo")
@@ -545,6 +777,25 @@ namespace SnapLingo.Infrastructure.Persistence.Migrations
                         .HasForeignKey("PhotoId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+
+                    b.Navigation("Photo");
+                });
+
+            modelBuilder.Entity("SnapLingo.Domain.Entities.PhotoPerson", b =>
+                {
+                    b.HasOne("SnapLingo.Domain.Entities.Person", "Person")
+                        .WithMany("PhotoLabels")
+                        .HasForeignKey("PersonId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("SnapLingo.Domain.Entities.Photo", "Photo")
+                        .WithMany()
+                        .HasForeignKey("PhotoId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Person");
 
                     b.Navigation("Photo");
                 });
@@ -601,7 +852,14 @@ namespace SnapLingo.Infrastructure.Persistence.Migrations
 
                     b.Navigation("Content");
 
+                    b.Navigation("Feedback");
+
                     b.Navigation("Vocabularies");
+                });
+
+            modelBuilder.Entity("SnapLingo.Domain.Entities.Person", b =>
+                {
+                    b.Navigation("PhotoLabels");
                 });
 
             modelBuilder.Entity("SnapLingo.Domain.Entities.Vocabulary", b =>

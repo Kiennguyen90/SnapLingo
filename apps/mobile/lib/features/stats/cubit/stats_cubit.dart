@@ -14,19 +14,20 @@ final class StatsState extends Equatable {
   const StatsState({
     this.status = StatsStatus.loading,
     this.lessons = const [],
-    this.vocabCounts = const {},
+    this.details = const {},
     this.errorMessage,
   });
 
   final StatsStatus status;
   final List<LessonSummary> lessons;
 
-  /// lessonId → number of words, for completed lessons whose detail could be loaded.
-  final Map<String, int> vocabCounts;
+  /// lessonId → full lesson, for completed lessons whose detail could be loaded
+  /// (word counts, verification summary, feedback).
+  final Map<String, Lesson> details;
   final String? errorMessage;
 
   @override
-  List<Object?> get props => [status, lessons, vocabCounts, errorMessage];
+  List<Object?> get props => [status, lessons, details, errorMessage];
 }
 
 /// The API has no stats endpoint; everything is derived from the lesson history.
@@ -53,7 +54,7 @@ class StatsCubit extends Cubit<StatsState> {
       emit(StatsState(
         status: StatsStatus.success,
         lessons: lessons,
-        vocabCounts: {for (final d in details.whereType<Lesson>()) d.lessonId: d.vocabulary.length},
+        details: {for (final d in details.whereType<Lesson>()) d.lessonId: d},
       ));
     } on ApiException catch (e) {
       if (isClosed || (silent && state.status == StatsStatus.success)) return;

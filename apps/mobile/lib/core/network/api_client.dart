@@ -40,11 +40,19 @@ class ApiClient {
 
   Future<dynamic> patch(String path, {Object? body}) => _send('PATCH', path, body: body);
 
+  Future<dynamic> put(String path, {Object? body}) => _send('PUT', path, body: body);
+
   Future<dynamic> delete(String path) => _send('DELETE', path);
 
-  Future<dynamic> uploadFile(String path, {required File file, String field = 'file'}) async {
+  Future<dynamic> uploadFile(
+    String path, {
+    required File file,
+    String field = 'file',
+    Map<String, String> fields = const {},
+  }) async {
     final request = http.MultipartRequest('POST', _uri(path))
       ..headers.addAll(_headers(json: false))
+      ..fields.addAll(fields)
       ..files.add(await http.MultipartFile.fromPath(field, file.path, contentType: _mediaTypeOf(file.path)));
 
     return _handle(() async => http.Response.fromStream(await _http.send(request).timeout(_timeout * 2)));

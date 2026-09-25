@@ -13,9 +13,15 @@ class PhotoService {
 
   static const _urlLifetime = Duration(minutes: 12);
 
-  /// Returns the new photo's id.
-  Future<String> upload(File file) async {
-    final json = await _api.uploadFile('/api/v1/photos', file: file) as Map<String, dynamic>;
+  /// Uploads a photo with its capture metadata (proposal: time, note, activity tag) and
+  /// returns the new photo's id. [capturedAt] is sent as local wall-clock time with the
+  /// device's UTC offset, because "Sunday morning" is a local-time fact.
+  Future<String> upload(File file, {DateTime? capturedAt, String? note, String? activityTag}) async {
+    final json = await _api.uploadFile('/api/v1/photos', file: file, fields: {
+      if (capturedAt != null) 'capturedAt': isoWithOffset(capturedAt),
+      if (note != null && note.trim().isNotEmpty) 'note': note.trim(),
+      'activityTag': ?activityTag,
+    }) as Map<String, dynamic>;
     final photoId = json['photoId'].toString();
     _remember(photoId, json['signedUrl'].toString());
     return photoId;
@@ -37,6 +43,17 @@ class PhotoService {
         _inFlight.remove(photoId);
       }
     });
+  }
+
+  /// "2026-09-27T08:30:00+07:00": Dart's toIso8601String() drops the local offset.
+  static String isoWithOffset(DateTime local) {
+    String two(int v) => v.toString().padLeft(2, '0');
+    final offset = local.timeZoneOffset;
+    final sign = offset.isNegative ? '-' : '+';
+    final abs = offset.abs();
+    return '${local.year.toString().padLeft(4, '0')}-${two(local.month)}-${two(local.day)}'
+        'T${two(local.hour)}:${two(local.minute)}:${two(local.second)}'
+        '$sign${two(abs.inHours)}:${two(abs.inMinutes % 60)}';
   }
 
   String _remember(String photoId, String signedUrl) {

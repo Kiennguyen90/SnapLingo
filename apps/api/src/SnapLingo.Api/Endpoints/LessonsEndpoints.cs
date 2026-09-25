@@ -1,4 +1,5 @@
 using SnapLingo.Application.Abstractions;
+using SnapLingo.Application.Ai;
 using SnapLingo.Application.Audio;
 using SnapLingo.Application.Common;
 using SnapLingo.Application.Emotion;
@@ -110,7 +111,9 @@ public static class LessonsEndpoints
                 throw new AppValidationException("Lesson has no story/dialogue content to synthesize yet.");
             }
 
-            var profile = emotionPolicy.GetProfile(detail.Emotion, detail.CefrLevel);
+            var profile = detail.Emotion is { } emotion
+                ? LessonProfile.FromEmotion(emotionPolicy.GetProfile(emotion, detail.CefrLevel))
+                : LessonProfile.Default;
             var voice = audioOptions.Value.DefaultVoice;
 
             // Dialogue audio is for English pronunciation practice — synthesize the English
@@ -130,6 +133,42 @@ public static class LessonsEndpoints
             return Results.Ok(new LessonAudioResponse(storyUrl, dialogueUrl, storyViUrl));
         })
         .Produces<LessonAudioResponse>();
+
+        // Module 5: one-tap feedback on the story (1–5 satisfaction / usefulness).
+        group.MapPost("/{id:guid}/feedback", async (
+            Guid id,
+            SubmitFeedbackRequest request,
+            LessonService lessonService,
+            ICurrentUserService currentUser,
+            CancellationToken ct) =>
+        {
+            var feedback = await lessonService.SubmitFeedbackAsync(
+                currentUser.UserId, id, request.Satisfaction, request.Usefulness, ct);
+            return Results.Ok(new FeedbackResponse(feedback.Satisfaction, feedback.Usefulness));
+        })
+        .Produces<FeedbackResponse>();
+
+        // The learner decides which words go into review (saving is itself a Module 5 signal).
+        group.MapPost("/{id:guid}/vocabulary/{vocabularyId:guid}/save", async (
+            Guid id, Guid vocabularyId, LessonService lessonService, ICurrentUserService currentUser, CancellationToken ct) =>
+        {
+            await lessonService.SetWordSavedAsync(currentUser.UserId, id, vocabularyId, saved: true, ct);
+            return Results.NoContent();
+        });
+
+        group.MapDelete("/{id:guid}/vocabulary/{vocabularyId:guid}/save", async (
+            Guid id, Guid vocabularyId, LessonService lessonService, ICurrentUserService currentUser, CancellationToken ct) =>
+        {
+            await lessonService.SetWordSavedAsync(currentUser.UserId, id, vocabularyId, saved: false, ct);
+            return Results.NoContent();
+        });
+
+        group.MapPost("/{id:guid}/vocabulary/save-all", async (
+            Guid id, LessonService lessonService, ICurrentUserService currentUser, CancellationToken ct) =>
+        {
+            await lessonService.SetWordSavedAsync(currentUser.UserId, id, vocabularyId: null, saved: true, ct);
+            return Results.NoContent();
+        });
 
         group.MapDelete("/{id:guid}", async (
             Guid id,
@@ -154,11 +193,27 @@ public static class LessonsEndpoints
             ? null
             : new SceneResponse(d.Scene.TitleEn, d.Scene.TitleVi, d.Scene.DescriptionEn, d.Scene.DescriptionVi, d.Scene.Confidence, d.Scene.Objects),
         d.Vocabulary.Select(v => new VocabularyResponse(
-            v.VocabularyId, v.Word, v.Ipa, v.PartOfSpeech, v.MeaningVi, v.ExampleEn, v.ExampleVi, v.VisualAnchor)).ToList(),
-        d.Story is null ? null : new StoryResponse(d.Story.TitleEn, d.Story.TitleVi, d.Story.TextEn, d.Story.TextVi, d.ContextEn, d.ContextVi),
+            v.VocabularyId, v.Word, v.Ipa, v.PartOfSpeech, v.MeaningVi, v.ExampleEn, v.ExampleVi, v.VisualAnchor, v.Saved)).ToList(),
+        d.Story is null
+            ? null
+            : new StoryResponse(d.Story.TitleEn, d.Story.TitleVi, d.Story.TextEn, d.Story.TextVi, d.ContextEn, d.ContextVi,
+                d.Story.Sentences.Select(s => new StorySentenceResponse(
+                    s.En, s.Vi, s.Label, s.Hedged,
+                    s.Sources.Select(src => new EvidenceSourceResponse(src.Code, src.Source, src.DisplayVi)).ToList())).ToList()),
+        d.Patterns.Select(p => new PatternResponse(p.Pattern, p.NameVi, p.ExplanationVi, p.ExampleEn, p.ExampleVi)).ToList(),
         d.Dialogue.Select(t => new DialogueTurnResponse(t.Speaker, t.TextEn, t.TextVi)).ToList(),
         d.Quiz.Select(q => new QuizItemResponse(
             q.Type, q.QuestionEn, q.QuestionVi, q.Options, q.CorrectAnswer, q.ExplanationEn, q.ExplanationVi)).ToList(),
+        d.Grounding is null
+            ? null
+            : new GroundingResponse(d.Grounding.Mode, d.Grounding.MemoryMode, d.Grounding.Regenerations, d.Grounding.Claims,
+                d.Grounding.Grounded, d.Grounding.Inferred, d.Grounding.UnsupportedFound,
+                d.Grounding.DroppedSentences, d.Grounding.HedgedSentences),
+        d.Context is null
+            ? null
+            : new LessonContextResponse(d.Context.CapturedAtLocal, d.Context.Note, d.Context.ActivityTag, d.Context.MemoryEventsUsed,
+                d.Context.HabitsVi, d.Context.ChangesVi, d.Context.PeopleVi, d.Context.UnlabeledPeopleCount),
+        d.Feedback is null ? null : new FeedbackResponse(d.Feedback.Satisfaction, d.Feedback.Usefulness),
         new LessonAudioResponse(d.StoryAudioUrl, d.DialogueAudioUrl, d.StoryAudioViUrl),
         d.CreatedAt);
 }

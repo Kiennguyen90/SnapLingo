@@ -17,6 +17,10 @@ public class SnapLingoDbContext(DbContextOptions<SnapLingoDbContext> options) : 
     public DbSet<UserVocabularyProgress> UserVocabularyProgresses => Set<UserVocabularyProgress>();
     public DbSet<ReviewEvent> ReviewEvents => Set<ReviewEvent>();
     public DbSet<AiGenerationLog> AiGenerationLogs => Set<AiGenerationLog>();
+    public DbSet<PhotoEvent> PhotoEvents => Set<PhotoEvent>();
+    public DbSet<Person> People => Set<Person>();
+    public DbSet<PhotoPerson> PhotoPeople => Set<PhotoPerson>();
+    public DbSet<LessonFeedback> LessonFeedbacks => Set<LessonFeedback>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

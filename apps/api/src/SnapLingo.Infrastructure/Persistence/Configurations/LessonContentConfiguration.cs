@@ -16,5 +16,8 @@ public class LessonContentConfiguration : IEntityTypeConfiguration<LessonContent
         builder.Property(c => c.StoryJson).HasColumnType("jsonb");
         builder.Property(c => c.DialogueJson).HasColumnType("jsonb");
         builder.Property(c => c.QuizJson).HasColumnType("jsonb");
+        builder.Property(c => c.PatternsJson).HasColumnType("jsonb");
+        builder.Property(c => c.EvidenceJson).HasColumnType("jsonb");
+        builder.Property(c => c.GroundingJson).HasColumnType("jsonb");
     }
 }

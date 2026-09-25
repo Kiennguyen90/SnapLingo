@@ -22,5 +22,9 @@ public class UserVocabularyProgressConfiguration : IEntityTypeConfiguration<User
             .OnDelete(DeleteBehavior.Restrict);
 
         builder.HasIndex(p => new { p.UserId, p.NextReviewAt });
+
+        // Plain column, not a FK: deleting a lesson must not erase the fact that the learner
+        // saved a word from it (it's a Module 5 behavior signal).
+        builder.HasIndex(p => p.SavedFromLessonId);
     }
 }

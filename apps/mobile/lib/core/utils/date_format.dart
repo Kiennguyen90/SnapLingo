@@ -7,6 +7,10 @@ abstract final class ViDate {
 
   static String weekdayShort(DateTime d) => d.weekday == DateTime.sunday ? 'CN' : 'T${d.weekday + 1}';
 
+  static String weekday(DateTime d) => d.weekday == DateTime.sunday ? 'Chủ nhật' : 'Thứ ${d.weekday + 1}';
+
+  static String clock(DateTime d) => '${d.hour.toString().padLeft(2, '0')}:${d.minute.toString().padLeft(2, '0')}';
+
   static String relative(DateTime d) {
     final today = dayOnly(DateTime.now());
     final days = today.difference(dayOnly(d)).inDays;

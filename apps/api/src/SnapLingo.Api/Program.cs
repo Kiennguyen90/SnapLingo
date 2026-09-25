@@ -56,7 +56,7 @@ builder.Services.AddSwaggerGen(options =>
     {
         Title = "SnapLingo API",
         Version = "v1",
-        Description = "Auth, photos, lesson generation (fake AI adapter) and spaced-repetition review. No real OpenAI integration yet."
+        Description = "Auth, photos with capture metadata, grounded memory-augmented story lessons with a verification report, person labels, feedback and spaced-repetition review."
     });
 
     var bearerScheme = new OpenApiSecurityScheme
@@ -95,6 +95,7 @@ app.MapUsersEndpoints();
 app.MapPhotosEndpoints();
 app.MapLessonsEndpoints();
 app.MapReviewsEndpoints();
+app.MapPeopleEndpoints();
 app.MapMediaEndpoints();
 
 using (var scope = app.Services.CreateScope())

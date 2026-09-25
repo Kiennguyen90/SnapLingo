@@ -10,4 +10,7 @@ public sealed record PhotoResponse(
     DateTimeOffset? TakenAt,
     DateTimeOffset CreatedAt,
     string SignedUrl,
-    PhotoMusicResponse? Music = null);
+    PhotoMusicResponse? Music = null,
+    DateTimeOffset? CapturedAt = null,
+    string? Note = null,
+    string? ActivityTag = null);

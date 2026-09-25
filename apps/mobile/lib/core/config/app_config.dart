@@ -15,4 +15,9 @@ abstract final class AppConfig {
 
   /// Lessons per week the home screen's "Mục tiêu tuần này" card counts towards.
   static const int weeklyLessonGoal = 5;
+
+  /// Emotion selection is parked as a future feature: the emotion picker and emotion-aware
+  /// lessons are kept in the code but hidden unless built with
+  /// `--dart-define=EMOTION_SELECTION=true` (and enabled on the API: Features:EmotionSelection).
+  static const bool emotionSelection = bool.fromEnvironment('EMOTION_SELECTION');
 }
