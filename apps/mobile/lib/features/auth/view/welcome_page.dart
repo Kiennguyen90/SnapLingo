@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-import '../../../core/models/emotion.dart';
 import '../../../core/settings/settings_cubit.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/brand_logo.dart';
@@ -38,10 +37,10 @@ class _WelcomePageState extends State<WelcomePage> {
       art: _IconArt(icon: Icons.photo_camera_rounded),
     ),
     _Slide(
-      title: 'Học theo cảm xúc',
-      subtitle: 'bài học hợp với tâm trạng',
-      body: 'Vui, mệt hay tò mò? Chọn cảm xúc của bạn – giọng điệu, độ dài và số từ vựng sẽ được điều chỉnh cho phù hợp.',
-      art: _EmotionArt(),
+      title: 'Câu chuyện đúng với đời bạn',
+      subtitle: 'không bịa, có căn cứ',
+      body: 'SnapLingo nhớ thói quen và những người bạn gắn nhãn, rồi kiểm tra từng câu với ảnh, thời gian và ký ức trước khi cho bạn học.',
+      art: _IconArt(icon: Icons.verified_rounded),
     ),
     _Slide(
       title: 'Nhớ lâu bằng hình ảnh',
@@ -265,31 +264,6 @@ class _IconArt extends StatelessWidget {
         height: 170,
         decoration: const BoxDecoration(color: AppColors.primarySoft, shape: BoxShape.circle),
         child: Icon(icon, size: 84, color: AppColors.primary),
-      ),
-    );
-  }
-}
-
-class _EmotionArt extends StatelessWidget {
-  const _EmotionArt();
-
-  @override
-  Widget build(BuildContext context) {
-    return ExcludeSemantics(
-      child: Wrap(
-        spacing: 12,
-        runSpacing: 12,
-        alignment: WrapAlignment.center,
-        children: [
-          for (final e in Emotion.values)
-            Container(
-              width: 76,
-              height: 76,
-              decoration: BoxDecoration(color: e.background, borderRadius: BorderRadius.circular(20)),
-              alignment: Alignment.center,
-              child: Text(e.emoji, style: const TextStyle(fontSize: 34)),
-            ),
-        ],
       ),
     );
   }

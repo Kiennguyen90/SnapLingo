@@ -15,6 +15,12 @@ namespace SnapLingo.Application.Media;
 
 public sealed record UploadPhotoResult(Photo Photo, string SignedUrl);
 
+/// <summary>Optional capture metadata sent with an upload (proposal section 1.5, input 2).</summary>
+public sealed record PhotoMetadata(DateTimeOffset? CapturedAt, string? Note, string? ActivityTag)
+{
+    public static readonly PhotoMetadata None = new(null, null, null);
+}
+
 public sealed record PhotoDetail(Photo Photo, string SignedUrl, PhotoMusicAsset? Music, string? MusicSignedUrl);
 
 /// <summary>
@@ -51,8 +57,10 @@ public sealed class PhotoService(
         Guid userId,
         Stream content,
         string declaredContentType,
-        CancellationToken ct)
+        CancellationToken ct,
+        PhotoMetadata? metadata = null)
     {
+        metadata ??= PhotoMetadata.None;
         if (!_options.AllowedContentTypes.Contains(declaredContentType, StringComparer.OrdinalIgnoreCase))
         {
             throw new AppValidationException(
@@ -130,6 +138,12 @@ public sealed class PhotoService(
             MimeType = declaredContentType,
             Sha256 = sha256,
             TakenAt = takenAt,
+            // Postgres timestamptz only accepts UTC; the device's offset is kept separately so
+            // the local wall-clock time ("Sunday 08:30") can be reconstructed exactly.
+            CapturedAt = metadata.CapturedAt?.ToUniversalTime(),
+            UtcOffsetMinutes = metadata.CapturedAt is { } captured ? (int)captured.Offset.TotalMinutes : null,
+            Note = CleanNote(metadata.Note),
+            ActivityTag = CleanTag(metadata.ActivityTag),
             CreatedAt = clock.UtcNow
         };
 
@@ -138,6 +152,49 @@ public sealed class PhotoService(
 
         var signedUrl = storage.GetSignedUrl(photo.ObjectKey, TimeSpan.FromMinutes(15));
         return new UploadPhotoResult(photo, signedUrl);
+    }
+
+    /// <summary>Edits the learner's note / activity tag after upload. Takes effect for the next
+    /// lesson generated from this photo.</summary>
+    public async Task<Photo> UpdateMetadataAsync(Guid userId, Guid photoId, string? note, string? activityTag, CancellationToken ct)
+    {
+        var photo = await db.Photos.FirstOrDefaultAsync(p => p.Id == photoId && p.UserId == userId, ct)
+            ?? throw new NotFoundException("Photo not found.");
+
+        if (note is not null)
+        {
+            photo.Note = CleanNote(note);
+        }
+
+        if (activityTag is not null)
+        {
+            photo.ActivityTag = CleanTag(activityTag);
+        }
+
+        await db.SaveChangesAsync(ct);
+        return photo;
+    }
+
+    private static string? CleanNote(string? note)
+    {
+        var trimmed = note?.Trim();
+        if (string.IsNullOrEmpty(trimmed))
+        {
+            return null;
+        }
+
+        return trimmed.Length <= 280 ? trimmed : throw new AppValidationException("Note must be at most 280 characters.");
+    }
+
+    private static string? CleanTag(string? tag)
+    {
+        var trimmed = tag?.Trim().ToLowerInvariant();
+        if (string.IsNullOrEmpty(trimmed))
+        {
+            return null;
+        }
+
+        return trimmed.Length <= 50 ? trimmed : throw new AppValidationException("Activity tag must be at most 50 characters.");
     }
 
     private static bool MatchesDeclaredContentType(IImageFormat detected, string declaredContentType) =>

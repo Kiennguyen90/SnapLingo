@@ -6,6 +6,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../core/models/emotion.dart';
 import '../../../core/services/lesson_events.dart';
 import '../../../core/services/lesson_service.dart';
+import '../../../core/services/people_service.dart';
 import '../../../core/services/photo_service.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/app_card.dart';
@@ -18,12 +19,14 @@ import '../models/lesson_source.dart';
 
 /// Screen 05 — "AI đang tạo bài học" with live per-step progress.
 class GeneratingPage extends StatelessWidget {
-  const GeneratingPage({required this.source, required this.emotion, super.key});
+  const GeneratingPage({required this.source, super.key, this.emotion});
 
   final LessonSource source;
-  final Emotion emotion;
 
-  static Route<void> route(LessonSource source, Emotion emotion) =>
+  /// Only set when the parked emotion feature is on.
+  final Emotion? emotion;
+
+  static Route<void> route(LessonSource source, {Emotion? emotion}) =>
       MaterialPageRoute(builder: (_) => GeneratingPage(source: source, emotion: emotion));
 
   @override
@@ -32,6 +35,7 @@ class GeneratingPage extends StatelessWidget {
       create: (context) => GenerateCubit(
         photos: context.read<PhotoService>(),
         lessons: context.read<LessonService>(),
+        people: context.read<PeopleService>(),
         source: source,
         emotion: emotion,
         cefrLevel: context.read<AuthCubit>().state.profile?.cefrLevel ?? 'A2',
@@ -47,11 +51,11 @@ class _GeneratingView extends StatelessWidget {
   final LessonSource source;
 
   static const _labels = {
-    GenStep.analyzing: ('Phân tích ảnh', Icons.image_outlined),
-    GenStep.vocabulary: ('Tạo từ vựng', Icons.menu_book_outlined),
-    GenStep.story: ('Viết câu chuyện ngắn', Icons.description_outlined),
-    GenStep.audio: ('Tạo audio & hội thoại', Icons.volume_up_outlined),
-    GenStep.quiz: ('Chuẩn bị quiz', Icons.help_outline_rounded),
+    GenStep.upload: ('Tải ảnh & ghi nhận ngữ cảnh', Icons.image_outlined),
+    GenStep.memory: ('Tìm ký ức & thói quen của bạn', Icons.history_rounded),
+    GenStep.story: ('Viết câu chuyện & từ vựng', Icons.description_outlined),
+    GenStep.verify: ('Kiểm chứng từng câu', Icons.fact_check_outlined),
+    GenStep.audio: ('Tạo audio', Icons.volume_up_outlined),
   };
 
   void _onDone(BuildContext context, GenerateState state) {
@@ -101,7 +105,7 @@ class _GeneratingView extends StatelessWidget {
                 Text(
                   state.isFailed
                       ? state.errorMessage!
-                      : 'Chờ chút nhé! Chúng tôi đang biến ảnh của bạn thành bài học tiếng Anh dành riêng cho bạn.',
+                      : 'Chờ chút nhé! AI đang viết câu chuyện từ chính khoảnh khắc của bạn, và kiểm tra để mỗi câu đều đúng sự thật.',
                   textAlign: TextAlign.center,
                   style: text.bodyMedium?.copyWith(color: state.isFailed ? AppColors.error : AppColors.textSecondary),
                 ),

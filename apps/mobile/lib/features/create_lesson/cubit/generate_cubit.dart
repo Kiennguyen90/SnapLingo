@@ -7,10 +7,12 @@ import '../../../core/models/emotion.dart';
 import '../../../core/models/lesson.dart';
 import '../../../core/network/api_exception.dart';
 import '../../../core/services/lesson_service.dart';
+import '../../../core/services/people_service.dart';
 import '../../../core/services/photo_service.dart';
 import '../models/lesson_source.dart';
 
-enum GenStep { analyzing, vocabulary, story, audio, quiz }
+/// Stages of the grounded pipeline (proposal §5.3), in the order the learner sees them.
+enum GenStep { upload, memory, story, verify, audio }
 
 enum StepStatus { pending, active, done, skipped }
 
@@ -45,57 +47,77 @@ final class GenerateState extends Equatable {
 
 /// Drives the "AI đang tạo bài học" screen through the real API calls:
 ///
-/// 1. analyzing  → `POST /photos` (upload, EXIF strip) — skipped for regenerate
-/// 2–3, 5        → `POST /lessons` (one AI call produces vocab, story, dialogue, quiz)
-/// 4. audio      → `POST /lessons/{id}/audio` — optional, a failure doesn't block the lesson
+/// 1. upload  → `POST /photos` with capture metadata (+ `PUT /photos/{id}/people`)
+/// 2–4        → `POST /lessons`: one server call runs event extraction, memory retrieval,
+///              habit detection, story generation and multi-source verification
+/// 5. audio   → `POST /lessons/{id}/audio`; optional, a failure doesn't block the lesson
 class GenerateCubit extends Cubit<GenerateState> {
   GenerateCubit({
     required PhotoService photos,
     required LessonService lessons,
+    required PeopleService people,
     required this.source,
-    required this.emotion,
     required this.cefrLevel,
+    this.emotion,
   })  : _photos = photos,
         _lessons = lessons,
+        _people = people,
         super(GenerateState.initial());
 
   final PhotoService _photos;
   final LessonService _lessons;
+  final PeopleService _people;
   final LessonSource source;
-  final Emotion emotion;
+  final Emotion? emotion;
   final String cefrLevel;
 
   String? _uploadedPhotoId;
-  Timer? _storyTimer;
+  final List<Timer> _timers = [];
 
   Future<void> run() async {
     emit(GenerateState.initial());
     try {
-      _set(GenStep.analyzing, StepStatus.active);
-      if (source case NewPhotoSource(:final file)) {
-        _uploadedPhotoId ??= await _photos.upload(file); // don't re-upload on retry
+      _set(GenStep.upload, StepStatus.active);
+      if (source case NewPhotoSource(:final file, :final context)) {
+        // Don't re-upload on retry.
+        if (_uploadedPhotoId == null) {
+          _uploadedPhotoId = await _photos.upload(
+            file,
+            capturedAt: context.capturedAt,
+            note: context.note,
+            activityTag: context.activityTag,
+          );
+          if (context.personIds.isNotEmpty) {
+            await _people.setPhotoPeople(_uploadedPhotoId!, context.personIds);
+          }
+        }
       }
-      _set(GenStep.analyzing, StepStatus.done);
+      _set(GenStep.upload, StepStatus.done);
 
-      _set(GenStep.vocabulary, StepStatus.active);
-      // The single generation call writes vocabulary and story together; move the
-      // indicator on to the story after a moment so long AI calls still show progress.
-      _storyTimer = Timer(const Duration(seconds: 4), () {
-        _set(GenStep.vocabulary, StepStatus.done);
-        _set(GenStep.story, StepStatus.active);
-      });
+      // The server does memory → story → verification in one call; move the indicator along
+      // so a long AI call still shows progress, but only mark steps done when it returns.
+      _set(GenStep.memory, StepStatus.active);
+      _timers
+        ..add(Timer(const Duration(seconds: 3), () {
+          _set(GenStep.memory, StepStatus.done);
+          _set(GenStep.story, StepStatus.active);
+        }))
+        ..add(Timer(const Duration(seconds: 8), () {
+          _set(GenStep.story, StepStatus.done);
+          _set(GenStep.verify, StepStatus.active);
+        }));
 
       final lesson = await switch (source) {
-        NewPhotoSource() => _lessons.create(photoId: _uploadedPhotoId!, emotion: emotion, cefrLevel: cefrLevel),
-        RegenerateSource(:final lessonId) =>
-          _lessons.regenerate(lessonId: lessonId, emotion: emotion, cefrLevel: cefrLevel),
+        NewPhotoSource() => _lessons.create(photoId: _uploadedPhotoId!, cefrLevel: cefrLevel, emotion: emotion),
+        RegenerateSource(:final lessonId) => _lessons.regenerate(lessonId: lessonId, cefrLevel: cefrLevel, emotion: emotion),
       };
-      _storyTimer?.cancel();
+      _cancelTimers();
       if (lesson.status == LessonStatus.failed) {
         throw const ApiException('AI chưa tạo được bài học từ ảnh này. Hãy thử lại hoặc chọn ảnh khác.');
       }
-      _set(GenStep.vocabulary, StepStatus.done);
-      _set(GenStep.story, StepStatus.done);
+      for (final step in [GenStep.memory, GenStep.story, GenStep.verify]) {
+        _set(step, StepStatus.done);
+      }
 
       _set(GenStep.audio, StepStatus.active);
       var finalLesson = lesson;
@@ -107,13 +129,9 @@ class GenerateCubit extends Cubit<GenerateState> {
         _set(GenStep.audio, StepStatus.skipped);
       }
 
-      _set(GenStep.quiz, StepStatus.active);
-      await Future<void>.delayed(const Duration(milliseconds: 350));
-      _set(GenStep.quiz, StepStatus.done);
-
       if (!isClosed) emit(GenerateState(steps: state.steps, lesson: finalLesson));
     } on ApiException catch (e) {
-      _storyTimer?.cancel();
+      _cancelTimers();
       if (!isClosed) emit(GenerateState(steps: state.steps, errorMessage: e.message));
     }
   }
@@ -122,9 +140,16 @@ class GenerateCubit extends Cubit<GenerateState> {
     if (!isClosed) emit(state.withStep(step, status));
   }
 
+  void _cancelTimers() {
+    for (final t in _timers) {
+      t.cancel();
+    }
+    _timers.clear();
+  }
+
   @override
   Future<void> close() {
-    _storyTimer?.cancel();
+    _cancelTimers();
     return super.close();
   }
 }

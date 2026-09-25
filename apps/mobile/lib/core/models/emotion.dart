@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 
 /// Mirrors the API's `EmotionType` (serialized camelCase: `happy`, `calm`, ...).
 /// Labels and descriptions follow the Emotion screen in the design.
+///
+/// Emotion selection is parked as a future feature (see `AppConfig.emotionSelection`):
+/// lessons normally carry no emotion, so every consumer treats it as optional.
 enum Emotion {
   happy('😊', 'Happy', 'Vui vẻ', 'Vui vẻ, tràn đầy năng lượng', Color(0xFFFFF4D6), Color(0xFFB7791F)),
   calm('😌', 'Calm', 'Bình tĩnh', 'Bình tĩnh, thoải mái', Color(0xFFE3F0FF), Color(0xFF2F6FB5)),
@@ -22,8 +25,12 @@ enum Emotion {
   /// Wire value expected/produced by the API's JsonStringEnumConverter.
   String get apiValue => name;
 
-  static Emotion fromApi(Object? value) {
+  static Emotion? fromApi(Object? value) {
     final raw = value?.toString().toLowerCase();
-    return Emotion.values.firstWhere((e) => e.name == raw, orElse: () => Emotion.calm);
+    if (raw == null) return null;
+    for (final e in Emotion.values) {
+      if (e.name == raw) return e;
+    }
+    return null;
   }
 }

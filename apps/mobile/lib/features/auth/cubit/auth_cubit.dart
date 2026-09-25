@@ -63,8 +63,18 @@ class AuthCubit extends Cubit<AuthState> {
 
   Future<void> refreshProfile() => _loadProfile();
 
-  Future<void> updateProfile({String? displayName, String? cefrLevel}) async {
-    final profile = await _users.update(displayName: displayName, cefrLevel: cefrLevel);
+  Future<void> updateProfile({
+    String? displayName,
+    String? cefrLevel,
+    bool? personLabelingEnabled,
+    bool? researchConsent,
+  }) async {
+    final profile = await _users.update(
+      displayName: displayName,
+      cefrLevel: cefrLevel,
+      personLabelingEnabled: personLabelingEnabled,
+      researchConsent: researchConsent,
+    );
     emit(AuthState.authenticated(profile));
   }
 

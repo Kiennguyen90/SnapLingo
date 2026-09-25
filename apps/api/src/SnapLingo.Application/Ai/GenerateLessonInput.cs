@@ -1,16 +1,20 @@
-using SnapLingo.Domain.Enums;
-using SnapLingo.Domain.ValueObjects;
+using SnapLingo.Application.Stories;
 
 namespace SnapLingo.Application.Ai;
 
-/// <summary>Everything an <see cref="ILessonGenerator"/> needs to produce one lesson (spec section 8.2 + 10.2).</summary>
+/// <summary>A story sentence the verifier rejected, sent back to the generator with the reason
+/// so the next attempt can fix or remove it (proposal Figure 1, red loop).</summary>
+public sealed record RejectedSentence(string En, string Reason);
+
+/// <summary>Everything an <see cref="ILessonGenerator"/> needs to produce one lesson.</summary>
 public sealed record GenerateLessonInput(
     Guid PhotoId,
     string PhotoObjectKey,
     string PhotoMimeType,
-    EmotionType Emotion,
-    EmotionProfile EmotionProfile,
+    LessonProfile Profile,
     string CefrLevel,
     string? NativeLanguage,
     string? LearningGoal,
-    int VocabularyTarget);
+    int VocabularyTarget,
+    EvidenceBundle Evidence,
+    IReadOnlyList<RejectedSentence> Rejected);

@@ -12,22 +12,59 @@ class LessonService {
   /// they are signed and short-lived, so [generateAudio] always goes to the network.
   final Map<String, Lesson> _cache = {};
 
-  Future<Lesson> create({required String photoId, required Emotion emotion, required String cefrLevel}) async {
+  /// Runs the whole grounded pipeline on the server (event → memory → story → verification).
+  /// [emotion] is only sent when the parked emotion feature is switched on.
+  Future<Lesson> create({required String photoId, required String cefrLevel, Emotion? emotion}) async {
     final json = await _api.post(
       '/api/v1/lessons',
-      body: {'photoId': photoId, 'emotion': emotion.apiValue, 'cefrLevel': cefrLevel, 'nativeLanguage': 'vi'},
+      body: {'photoId': photoId, 'emotion': ?emotion?.apiValue, 'cefrLevel': cefrLevel, 'nativeLanguage': 'vi'},
       timeout: ApiClient.aiTimeout,
     );
     return _store(Lesson.fromJson(json as Map<String, dynamic>));
   }
 
-  Future<Lesson> regenerate({required String lessonId, required Emotion emotion, required String cefrLevel}) async {
+  /// Writes the story again from the same photo, e.g. after the learner labeled a person.
+  Future<Lesson> regenerate({required String lessonId, required String cefrLevel, Emotion? emotion}) async {
     final json = await _api.post(
       '/api/v1/lessons/$lessonId/regenerate',
-      body: {'emotion': emotion.apiValue, 'cefrLevel': cefrLevel, 'nativeLanguage': 'vi'},
+      body: {'emotion': ?emotion?.apiValue, 'cefrLevel': cefrLevel, 'nativeLanguage': 'vi'},
       timeout: ApiClient.aiTimeout,
     );
     return _store(Lesson.fromJson(json as Map<String, dynamic>));
+  }
+
+  /// One-tap 1–5 ratings of the story (either or both).
+  Future<LessonFeedback> sendFeedback(String lessonId, {int? satisfaction, int? usefulness}) async {
+    final json = await _api.post('/api/v1/lessons/$lessonId/feedback', body: {
+      'satisfaction': ?satisfaction,
+      'usefulness': ?usefulness,
+    });
+    final feedback = LessonFeedback.fromJson(json as Map<String, dynamic>);
+    final cached = _cache[lessonId];
+    if (cached != null) _cache[lessonId] = cached.copyWith(feedback: feedback);
+    return feedback;
+  }
+
+  /// Adds/removes one word ([vocabularyId]) or, with null, all of the lesson's words
+  /// to/from the learner's review list.
+  Future<void> setSaved(String lessonId, {String? vocabularyId, required bool saved}) async {
+    if (vocabularyId == null) {
+      await _api.post('/api/v1/lessons/$lessonId/vocabulary/save-all');
+    } else if (saved) {
+      await _api.post('/api/v1/lessons/$lessonId/vocabulary/$vocabularyId/save');
+    } else {
+      await _api.delete('/api/v1/lessons/$lessonId/vocabulary/$vocabularyId/save');
+    }
+
+    final cached = _cache[lessonId];
+    if (cached != null) {
+      _cache[lessonId] = cached.copyWith(
+        vocabulary: [
+          for (final v in cached.vocabulary)
+            vocabularyId == null || v.vocabularyId == vocabularyId ? v.copyWith(saved: saved) : v,
+        ],
+      );
+    }
   }
 
   Future<Lesson> get(String lessonId, {bool refresh = false}) async {

@@ -16,6 +16,8 @@ final class UserProfile extends Equatable {
     required this.cefrLevel,
     this.displayName,
     this.nativeLanguage,
+    this.personLabelingEnabled = false,
+    this.researchConsent = false,
   });
 
   final String userId;
@@ -23,6 +25,12 @@ final class UserProfile extends Equatable {
   final String? displayName;
   final String cefrLevel;
   final String? nativeLanguage;
+
+  /// Opt-in: the learner may label people in photos (off by default).
+  final bool personLabelingEnabled;
+
+  /// The learner agreed that usage data may be used for the study.
+  final bool researchConsent;
 
   /// Name used in greetings — falls back to the part of the email before `@`.
   String get greetingName {
@@ -42,8 +50,11 @@ final class UserProfile extends Equatable {
         displayName: json['displayName']?.toString(),
         cefrLevel: json['cefrLevel']?.toString() ?? 'A2',
         nativeLanguage: json['nativeLanguage']?.toString(),
+        personLabelingEnabled: json['personLabelingEnabled'] == true,
+        researchConsent: json['researchConsentAt'] != null,
       );
 
   @override
-  List<Object?> get props => [userId, email, displayName, cefrLevel, nativeLanguage];
+  List<Object?> get props =>
+      [userId, email, displayName, cefrLevel, nativeLanguage, personLabelingEnabled, researchConsent];
 }

@@ -1,68 +1,71 @@
 using System.Diagnostics;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 using SnapLingo.Application.Abstractions;
 using SnapLingo.Application.Ai;
 using SnapLingo.Application.Common;
 using SnapLingo.Application.Emotion;
 using SnapLingo.Application.Media;
+using SnapLingo.Application.Stories;
 using SnapLingo.Domain.Entities;
 using SnapLingo.Domain.Enums;
 
 namespace SnapLingo.Application.Lessons;
 
 /// <summary>
-/// Orchestrates lesson generation end to end (spec section 6.2): load photo → build emotion
-/// profile → call the AI adapter → validate the structured output → persist lesson/content/
-/// vocabulary → seed the review schedule. Never persists a Completed lesson from unvalidated
-/// AI output (AC-09).
+/// Orchestrates the grounded story pipeline end to end (proposal section 5.3):
+/// photo → event (Module 1, stored in memory) → related memories + habits (Modules 2–3) →
+/// coded evidence → story generation and multi-source verification (Modules 4a/4b) → persist
+/// the story together with its verification report. Learner feedback and saved words
+/// (Module 5) are recorded here too. Never persists a Completed lesson from unvalidated output.
 /// </summary>
 public sealed class LessonService(
     IAppDbContext db,
     IEmotionPolicy emotionPolicy,
-    ILessonGenerator generator,
+    MemoryService memory,
+    StoryPipeline pipeline,
     IObjectStorage storage,
-    IDateTimeProvider clock)
+    IDateTimeProvider clock,
+    IOptions<StoryPipelineOptions> pipelineOptions,
+    IOptions<FeatureOptions> featureOptions)
 {
-    private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
+    private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web)
+    {
+        Converters = { new JsonStringEnumConverter(JsonNamingPolicy.CamelCase) }
+    };
+
+    private readonly StoryPipelineOptions _pipeline = pipelineOptions.Value;
+    private readonly FeatureOptions _features = featureOptions.Value;
 
     public async Task<Lesson> CreateAsync(CreateLessonCommand command, CancellationToken ct)
     {
-        // Cost control: creating a lesson for a (photo, emotion, CEFR, native language) combo
-        // that already has a Completed result under the current prompt schema just hands back
-        // that lesson instead of paying for another AI call. This is a plain "create" request
-        // (idempotent-ish reuse) — a caller who explicitly wants a fresh take uses /regenerate,
-        // which always calls the AI adapter and bumps the version regardless of this cache.
-        var reusable = await FindReusableLessonAsync(command, ct);
-        if (reusable is not null)
-        {
-            return reusable;
-        }
+        var emotion = EffectiveEmotion(command.Emotion);
 
-        return await GenerateInternalAsync(
-            command.UserId,
-            command.PhotoId,
-            command.Emotion,
-            command.CefrLevel,
-            command.NativeLanguage,
-            command.LearningGoal,
-            command.VocabularyTarget,
-            version: 1,
-            ct);
-    }
-
-    private Task<Lesson?> FindReusableLessonAsync(CreateLessonCommand command, CancellationToken ct) =>
-        db.Lessons
+        // Cost control: the same (photo, emotion, CEFR, language) under the current prompt
+        // schema hands back the existing lesson instead of paying for another pipeline run
+        // (e.g. a client retry). /regenerate is the explicit "write it again" path.
+        var reusable = await db.Lessons
             .Where(l =>
                 l.UserId == command.UserId &&
                 l.PhotoId == command.PhotoId &&
-                l.Emotion == command.Emotion &&
+                l.Emotion == emotion &&
                 l.CefrLevel == command.CefrLevel &&
                 l.NativeLanguage == command.NativeLanguage &&
                 l.PromptVersion == PromptBuilder.PromptVersion &&
                 l.Status == LessonStatus.Completed)
             .OrderByDescending(l => l.CreatedAt)
             .FirstOrDefaultAsync(ct);
+        if (reusable is not null)
+        {
+            return reusable;
+        }
+
+        return await GenerateInternalAsync(
+            command.UserId, command.PhotoId, emotion, command.CefrLevel, command.NativeLanguage,
+            command.LearningGoal, command.VocabularyTarget, version: 1, ct);
+    }
 
     public async Task<Lesson> RegenerateAsync(RegenerateLessonCommand command, CancellationToken ct)
     {
@@ -77,9 +80,9 @@ public sealed class LessonService(
         return await GenerateInternalAsync(
             command.UserId,
             original.PhotoId,
-            command.Emotion,
+            EffectiveEmotion(command.Emotion ?? original.Emotion),
             command.CefrLevel ?? original.CefrLevel,
-            command.NativeLanguage,
+            command.NativeLanguage ?? original.NativeLanguage,
             command.LearningGoal,
             command.VocabularyTarget ?? 6,
             version: nextVersion + 1,
@@ -92,9 +95,22 @@ public sealed class LessonService(
             .Include(l => l.Content)
             .Include(l => l.Vocabularies).ThenInclude(v => v.Vocabulary)
             .Include(l => l.AudioAssets)
+            .Include(l => l.Feedback)
+            .Include(l => l.Photo)
             .FirstOrDefaultAsync(l => l.Id == lessonId && l.UserId == userId, ct);
 
-        return lesson is null ? null : ToDetail(lesson);
+        if (lesson is null)
+        {
+            return null;
+        }
+
+        var vocabularyIds = lesson.Vocabularies.Select(v => v.VocabularyId).ToList();
+        var saved = await db.UserVocabularyProgresses
+            .Where(p => p.UserId == userId && vocabularyIds.Contains(p.VocabularyId))
+            .Select(p => p.VocabularyId)
+            .ToListAsync(ct);
+
+        return ToDetail(lesson, saved.ToHashSet());
     }
 
     public async Task<IReadOnlyList<LessonSummary>> ListAsync(Guid userId, int page, int pageSize, CancellationToken ct)
@@ -122,9 +138,9 @@ public sealed class LessonService(
         return rows
             .Select(r =>
             {
-                var (titleEn, titleVi) = SceneTitlesOrNull(r.SceneJson);
+                var scene = Deserialize<GeneratedScene>(r.SceneJson);
                 return new LessonSummary(
-                    r.Id, r.PhotoId, r.Emotion, r.CefrLevel, r.Status, r.Version, titleEn, titleVi, r.CreatedAt);
+                    r.Id, r.PhotoId, r.Emotion, r.CefrLevel, r.Status, r.Version, scene?.TitleEn, scene?.TitleVi, r.CreatedAt);
             })
             .ToList();
     }
@@ -140,16 +156,125 @@ public sealed class LessonService(
         db.ReviewEvents.RemoveRange(relatedEvents);
 
         // Audio bytes are left in object storage: another lesson's AudioAsset row may point at
-        // the same object key (spec 11.1 cross-lesson TTS cache reuse), so only the DB rows —
-        // and therefore this lesson's ability to hand out signed URLs for them — go away here.
+        // the same object key (cross-lesson TTS cache reuse), so only the DB rows go away here.
         db.Lessons.Remove(lesson);
         await db.SaveChangesAsync(ct);
+    }
+
+    // ---------------------------------------------------------------- Module 5
+
+    /// <summary>One-tap 1–5 ratings (proposal section 5.5). Re-rating overwrites.</summary>
+    public async Task<FeedbackDetail> SubmitFeedbackAsync(
+        Guid userId, Guid lessonId, int? satisfaction, int? usefulness, CancellationToken ct)
+    {
+        if (satisfaction is null && usefulness is null)
+        {
+            throw new AppValidationException("Provide a satisfaction and/or usefulness rating.");
+        }
+
+        if (satisfaction is < 1 or > 5 || usefulness is < 1 or > 5)
+        {
+            throw new AppValidationException("Ratings must be between 1 and 5.");
+        }
+
+        var lessonExists = await db.Lessons.AnyAsync(l => l.Id == lessonId && l.UserId == userId, ct);
+        if (!lessonExists)
+        {
+            throw new NotFoundException("Lesson not found.");
+        }
+
+        var now = clock.UtcNow;
+        var feedback = await db.LessonFeedbacks.FirstOrDefaultAsync(f => f.LessonId == lessonId, ct);
+        if (feedback is null)
+        {
+            feedback = new LessonFeedback { LessonId = lessonId, UserId = userId, CreatedAt = now };
+            db.LessonFeedbacks.Add(feedback);
+        }
+
+        feedback.Satisfaction = satisfaction ?? feedback.Satisfaction;
+        feedback.Usefulness = usefulness ?? feedback.Usefulness;
+        feedback.UpdatedAt = now;
+        await db.SaveChangesAsync(ct);
+
+        return new FeedbackDetail(feedback.Satisfaction, feedback.Usefulness);
+    }
+
+    /// <summary>
+    /// The learner chooses which words go into spaced-repetition review (proposal section 1.1,
+    /// step 3). Saving is a behavior signal for Module 5; unsaving keeps nothing behind.
+    /// </summary>
+    public async Task SetWordSavedAsync(Guid userId, Guid lessonId, Guid? vocabularyId, bool saved, CancellationToken ct)
+    {
+        var lessonVocabulary = await db.LessonVocabularies
+            .Where(lv => lv.LessonId == lessonId && lv.Lesson!.UserId == userId)
+            .Select(lv => lv.VocabularyId)
+            .ToListAsync(ct);
+
+        if (lessonVocabulary.Count == 0)
+        {
+            throw new NotFoundException("Lesson not found.");
+        }
+
+        var targets = vocabularyId is null ? lessonVocabulary : [vocabularyId.Value];
+        if (vocabularyId is not null && !lessonVocabulary.Contains(vocabularyId.Value))
+        {
+            throw new NotFoundException("This word is not part of the lesson.");
+        }
+
+        var existing = await db.UserVocabularyProgresses
+            .Where(p => p.UserId == userId && targets.Contains(p.VocabularyId))
+            .ToListAsync(ct);
+
+        if (saved)
+        {
+            var now = clock.UtcNow;
+            foreach (var id in targets.Except(existing.Select(e => e.VocabularyId)))
+            {
+                db.UserVocabularyProgresses.Add(new UserVocabularyProgress
+                {
+                    UserId = userId,
+                    VocabularyId = id,
+                    Strength = 0,
+                    Repetitions = 0,
+                    NextReviewAt = now,
+                    SavedAt = now,
+                    SavedFromLessonId = lessonId
+                });
+            }
+        }
+        else
+        {
+            db.UserVocabularyProgresses.RemoveRange(existing);
+        }
+
+        await db.SaveChangesAsync(ct);
+    }
+
+    // ---------------------------------------------------------------- Generation
+
+    private EmotionType? EffectiveEmotion(EmotionType? requested) => _features.EmotionSelection ? requested : null;
+
+    private LessonProfile ProfileFor(EmotionType? emotion, string cefrLevel) =>
+        emotion is null ? LessonProfile.Default : LessonProfile.FromEmotion(emotionPolicy.GetProfile(emotion.Value, cefrLevel));
+
+    /// <summary>Experiment condition for the next lesson (proposal section 6.2, E5).</summary>
+    private async Task<(MemoryMode, VerifierMode)> ChooseConditionAsync(Guid userId, CancellationToken ct)
+    {
+        if (_pipeline.Assignment == ConditionAssignment.Fixed)
+        {
+            return (_pipeline.MemoryMode, _pipeline.VerifierMode);
+        }
+
+        var previous = await db.Lessons.CountAsync(l => l.UserId == userId, ct);
+        return previous % 2 == 0
+            ? (_pipeline.MemoryMode, _pipeline.VerifierMode)
+            : (MemoryMode.None, VerifierMode.None);
     }
 
     private async Task<Lesson> GenerateInternalAsync(
         Guid userId,
         Guid photoId,
-        EmotionType emotion,
+        EmotionType? emotion,
         string cefrLevel,
         string? nativeLanguage,
         string? learningGoal,
@@ -159,8 +284,10 @@ public sealed class LessonService(
     {
         var photo = await db.Photos.FirstOrDefaultAsync(p => p.Id == photoId && p.UserId == userId, ct)
             ?? throw new NotFoundException("Photo not found.");
+        var user = await db.Users.FirstAsync(u => u.Id == userId, ct);
 
-        var profile = emotionPolicy.GetProfile(emotion, cefrLevel);
+        var profile = ProfileFor(emotion, cefrLevel);
+        var (memoryMode, verifierMode) = await ChooseConditionAsync(userId, ct);
 
         var lesson = new Lesson
         {
@@ -173,32 +300,69 @@ public sealed class LessonService(
             Status = LessonStatus.Pending,
             Version = version,
             PromptVersion = PromptBuilder.PromptVersion,
-            ModelName = generator.ModelName,
+            ModelName = pipeline.GeneratorModel,
+            MemoryMode = memoryMode,
+            VerifierMode = verifierMode,
             CreatedAt = clock.UtcNow
         };
         db.Lessons.Add(lesson);
         await db.SaveChangesAsync(ct);
 
-        var input = new GenerateLessonInput(
-            photoId, photo.ObjectKey, photo.MimeType, emotion, profile,
-            cefrLevel, nativeLanguage, learningGoal, vocabularyTarget);
-
         var stopwatch = Stopwatch.StartNew();
-        GeneratedLessonResult? result = null;
+        int? inputTokens = null, outputTokens = null;
         try
         {
-            result = await generator.GenerateAsync(input, ct);
-            ValidateGeneratedLesson(result.Lesson, profile);
+            // Module 1: the photo's event, extracted once and stored in memory.
+            var photoEvent = await memory.GetOrCreateEventAsync(photo, ct);
+            inputTokens = photoEvent.InputTokens;
+            outputTokens = photoEvent.OutputTokens;
+
+            // Modules 2 + 3: related memories, habits and context changes.
+            var hits = memoryMode == MemoryMode.Personal
+                ? await memory.RetrieveAsync(photoEvent.Event, ct)
+                : [];
+            var temporal = memoryMode == MemoryMode.Personal
+                ? TemporalAnalyzer.Analyze(
+                    photoEvent.Event,
+                    hits.Select(h => h.Event).ToList(),
+                    hits.ToDictionary(h => h.Event.PhotoId, h => h.Event.Photo?.Note),
+                    _pipeline.Temporal)
+                : TemporalContext.Empty;
+
+            // Person labels only count while the learner keeps the opt-in feature on.
+            var people = user.PersonLabelingEnabled
+                ? await db.PhotoPeople
+                    .Where(pp => pp.PhotoId == photoId)
+                    .OrderBy(pp => pp.CreatedAt)
+                    .Select(pp => pp.Person!)
+                    .ToListAsync(ct)
+                : [];
+
+            var moment = LocalMoment.For(photoEvent.Event);
+            var evidence = EvidenceBuilder.Build(photoEvent.Event, photo, moment, hits, temporal, people, memoryMode);
+
+            var input = new GenerateLessonInput(
+                photoId, photo.ObjectKey, photo.MimeType, profile, cefrLevel, nativeLanguage,
+                learningGoal, vocabularyTarget, evidence, []);
+
+            // Modules 4a + 4b.
+            var result = await pipeline.RunAsync(
+                input, verifierMode, memoryMode, _pipeline.MaxRegenerations,
+                generated => ValidateGeneratedLesson(generated, profile), ct);
+            inputTokens = Sum(inputTokens, result.InputTokens);
+            outputTokens = Sum(outputTokens, result.OutputTokens);
             stopwatch.Stop();
 
-            await PersistContentAsync(lesson, result.Lesson, ct);
+            var capturedLocal = photo.CapturedAt is { } captured
+                ? captured.ToOffset(TimeSpan.FromMinutes(photo.UtcOffsetMinutes ?? _pipeline.DefaultUtcOffsetMinutes))
+                : moment.Utc.ToOffset(TimeSpan.FromMinutes(_pipeline.DefaultUtcOffsetMinutes));
+
+            await PersistContentAsync(lesson, result, evidence, capturedLocal, ct);
 
             lesson.Status = LessonStatus.Completed;
             await db.SaveChangesAsync(ct);
 
-            await LogGenerationAsync(lesson.Id, stopwatch.Elapsed, "success", null, result.InputTokens, result.OutputTokens, ct);
-            await SeedReviewScheduleAsync(userId, lesson.Id, ct);
-
+            await LogGenerationAsync(lesson.Id, stopwatch.Elapsed, "success", null, inputTokens, outputTokens, ct);
             return lesson;
         }
         catch (Exception ex)
@@ -211,18 +375,17 @@ public sealed class LessonService(
                 stopwatch.Elapsed,
                 "failed",
                 ex is AppValidationException ? "invalid_ai_output" : "generation_error",
-                // `result` is non-null when the AI call itself succeeded and only our own
-                // validation rejected it afterwards — those tokens were still spent, so the
-                // cost log should reflect that instead of hiding it behind a null.
-                inputTokens: result?.InputTokens,
-                outputTokens: result?.OutputTokens,
+                // Tokens already spent (e.g. event extraction succeeded, generation failed
+                // validation) stay in the cost log instead of being hidden behind a null.
+                inputTokens,
+                outputTokens,
                 ct);
             throw;
         }
     }
 
-    /// <summary>Guardrails from spec section 19.1 — never let malformed AI output become a Completed lesson.</summary>
-    private static void ValidateGeneratedLesson(GeneratedLesson generated, Domain.ValueObjects.EmotionProfile profile)
+    /// <summary>Guardrails: never let malformed AI output become a Completed lesson.</summary>
+    private static void ValidateGeneratedLesson(GeneratedLesson generated, LessonProfile profile)
     {
         if (string.IsNullOrWhiteSpace(generated.Scene.TitleEn) || string.IsNullOrWhiteSpace(generated.Scene.DescriptionEn) ||
             string.IsNullOrWhiteSpace(generated.Scene.TitleVi) || string.IsNullOrWhiteSpace(generated.Scene.DescriptionVi))
@@ -233,7 +396,7 @@ public sealed class LessonService(
         if (generated.Vocabulary.Count < profile.VocabularyMin || generated.Vocabulary.Count > profile.VocabularyMax)
         {
             throw new AppValidationException(
-                $"AI returned {generated.Vocabulary.Count} vocabulary items; expected {profile.VocabularyMin}-{profile.VocabularyMax} for this emotion.");
+                $"AI returned {generated.Vocabulary.Count} vocabulary items; expected {profile.VocabularyMin}-{profile.VocabularyMax}.");
         }
 
         var normalizedWords = generated.Vocabulary.Select(v => NormalizeWord(v.Word)).ToList();
@@ -242,9 +405,10 @@ public sealed class LessonService(
             throw new AppValidationException("AI output contains duplicate vocabulary.");
         }
 
-        if (string.IsNullOrWhiteSpace(generated.Story.TextEn) || string.IsNullOrWhiteSpace(generated.Story.TextVi))
+        if (generated.Story.Sentences.Count == 0 ||
+            generated.Story.Sentences.Any(s => string.IsNullOrWhiteSpace(s.En) || string.IsNullOrWhiteSpace(s.Vi)))
         {
-            throw new AppValidationException("AI output is missing a story in English or Vietnamese.");
+            throw new AppValidationException("AI output is missing story sentences in English or Vietnamese.");
         }
 
         if (generated.Dialogue.Count == 0)
@@ -272,8 +436,10 @@ public sealed class LessonService(
         }
     }
 
-    private async Task PersistContentAsync(Lesson lesson, GeneratedLesson generated, CancellationToken ct)
+    private async Task PersistContentAsync(
+        Lesson lesson, PipelineResult result, EvidenceBundle evidence, DateTimeOffset capturedLocal, CancellationToken ct)
     {
+        var generated = result.Lesson;
         var content = new LessonContent
         {
             LessonId = lesson.Id,
@@ -283,10 +449,17 @@ public sealed class LessonService(
                 new StoredStory(
                     generated.Story.TitleEn, generated.Story.TitleVi,
                     generated.Story.TextEn, generated.Story.TextVi,
-                    generated.ContextEn, generated.ContextVi),
+                    generated.ContextEn, generated.ContextVi,
+                    generated.Story.Sentences.Select(s => new StoredSentence(s.En, s.Vi, s.Evidence)).ToList()),
                 JsonOptions),
+            PatternsJson = JsonSerializer.Serialize(generated.Patterns, JsonOptions),
             DialogueJson = JsonSerializer.Serialize(generated.Dialogue, JsonOptions),
-            QuizJson = JsonSerializer.Serialize(generated.Quiz, JsonOptions)
+            QuizJson = JsonSerializer.Serialize(generated.Quiz, JsonOptions),
+            EvidenceJson = JsonSerializer.Serialize(
+                new StoredEvidence(evidence.Items, capturedLocal, evidence.PeopleCount,
+                    evidence.UnlabeledPeopleCount, evidence.MemoryEventIds.Count),
+                JsonOptions),
+            GroundingJson = JsonSerializer.Serialize(result.Report, JsonOptions)
         };
         db.LessonContents.Add(content);
 
@@ -326,36 +499,6 @@ public sealed class LessonService(
         await db.SaveChangesAsync(ct);
     }
 
-    /// <summary>New vocabulary from a completed lesson is due for review immediately (FR-09).</summary>
-    private async Task SeedReviewScheduleAsync(Guid userId, Guid lessonId, CancellationToken ct)
-    {
-        var vocabularyIds = await db.LessonVocabularies
-            .Where(lv => lv.LessonId == lessonId)
-            .Select(lv => lv.VocabularyId)
-            .ToListAsync(ct);
-
-        var existing = await db.UserVocabularyProgresses
-            .Where(p => p.UserId == userId && vocabularyIds.Contains(p.VocabularyId))
-            .Select(p => p.VocabularyId)
-            .ToListAsync(ct);
-
-        var now = clock.UtcNow;
-        foreach (var vocabularyId in vocabularyIds.Except(existing))
-        {
-            db.UserVocabularyProgresses.Add(new UserVocabularyProgress
-            {
-                UserId = userId,
-                VocabularyId = vocabularyId,
-                Strength = 0,
-                Repetitions = 0,
-                NextReviewAt = now,
-                LastReviewedAt = null
-            });
-        }
-
-        await db.SaveChangesAsync(ct);
-    }
-
     private Task LogGenerationAsync(
         Guid lessonId, TimeSpan elapsed, string status, string? errorCode,
         int? inputTokens, int? outputTokens, CancellationToken ct)
@@ -364,7 +507,7 @@ public sealed class LessonService(
         {
             Id = Guid.NewGuid(),
             LessonId = lessonId,
-            Model = generator.ModelName,
+            Model = pipeline.GeneratorModel,
             PromptVersion = PromptBuilder.PromptVersion,
             LatencyMs = (int)elapsed.TotalMilliseconds,
             InputTokens = inputTokens,
@@ -376,12 +519,15 @@ public sealed class LessonService(
         return db.SaveChangesAsync(ct);
     }
 
-    private LessonDetail ToDetail(Lesson lesson)
+    private LessonDetail ToDetail(Lesson lesson, IReadOnlySet<Guid> savedVocabulary)
     {
         var scene = Deserialize<GeneratedScene>(lesson.Content?.SceneJson);
-        var story = Deserialize<StoredStory>(lesson.Content?.StoryJson);
+        var story = Deserialize<StoredStory>(lesson.Content?.StoryJson)?.Normalized();
+        var patterns = Deserialize<List<GeneratedPattern>>(lesson.Content?.PatternsJson) ?? [];
         var dialogue = Deserialize<List<GeneratedDialogueTurn>>(lesson.Content?.DialogueJson) ?? [];
         var quiz = Deserialize<List<GeneratedQuizItem>>(lesson.Content?.QuizJson) ?? [];
+        var report = Deserialize<GroundingReport>(lesson.Content?.GroundingJson);
+        var evidence = Deserialize<StoredEvidence>(lesson.Content?.EvidenceJson);
 
         var storyAudio = lesson.AudioAssets.FirstOrDefault(a => a.Kind == "story");
         var dialogueAudio = lesson.AudioAssets.FirstOrDefault(a => a.Kind == "dialogue");
@@ -398,7 +544,8 @@ public sealed class LessonService(
                 v.Example,
                 v.ExampleVi,
                 v.VisualAnchor,
-                v.SortOrder))
+                v.SortOrder,
+                savedVocabulary.Contains(v.VocabularyId)))
             .ToList();
 
         return new LessonDetail(
@@ -414,20 +561,79 @@ public sealed class LessonService(
             vocabulary,
             story?.ContextEn,
             story?.ContextVi,
-            story is null ? null : new GeneratedStory(story.TitleEn, story.TitleVi, story.TextEn, story.TextVi),
+            story is null ? null : ToStoryDetail(story, report),
+            patterns,
             dialogue,
             quiz,
+            report is null ? null : ToSummary(report),
+            evidence is null ? null : ToContext(evidence, lesson.Photo),
+            lesson.Feedback is null ? null : new FeedbackDetail(lesson.Feedback.Satisfaction, lesson.Feedback.Usefulness),
             storyAudio is null ? null : storage.GetSignedUrl(storyAudio.ObjectKey, TimeSpan.FromMinutes(15)),
             dialogueAudio is null ? null : storage.GetSignedUrl(dialogueAudio.ObjectKey, TimeSpan.FromMinutes(15)),
             storyAudioVi is null ? null : storage.GetSignedUrl(storyAudioVi.ObjectKey, TimeSpan.FromMinutes(15)),
             lesson.CreatedAt);
     }
 
-    private static (string? En, string? Vi) SceneTitlesOrNull(string? sceneJson)
+    private static StoryDetail ToStoryDetail(StoredStory story, GroundingReport? report)
     {
-        var scene = Deserialize<GeneratedScene>(sceneJson);
-        return (scene?.TitleEn, scene?.TitleVi);
+        IReadOnlyList<StorySentenceDetail> sentences;
+        if (report is not null)
+        {
+            sentences = report.Sentences
+                .Where(s => s.Action != SentenceAction.Dropped)
+                .Select(s => new StorySentenceDetail(
+                    s.En, s.Vi, s.Label,
+                    s.Action == SentenceAction.Hedged || s.Claims.Any(c => c.Hedged),
+                    s.Claims.SelectMany(c => c.Sources).DistinctBy(src => src.Code).ToList()))
+                .ToList();
+        }
+        else if (story.Sentences is { Count: > 0 })
+        {
+            sentences = story.Sentences.Select(s => new StorySentenceDetail(s.En, s.Vi, null, false, [])).ToList();
+        }
+        else
+        {
+            // Lessons from before the redesign: one block of text, no verification.
+            sentences = [new StorySentenceDetail(story.TextEn, story.TextVi, null, false, [])];
+        }
+
+        return new StoryDetail(story.TitleEn, story.TitleVi, story.TextEn, story.TextVi, sentences);
     }
+
+    private static GroundingSummary ToSummary(GroundingReport report)
+    {
+        var final = report.Sentences.Where(s => s.Action != SentenceAction.Dropped).SelectMany(s => s.Claims).ToList();
+        return new GroundingSummary(
+            report.Mode,
+            report.MemoryMode,
+            report.Regenerations,
+            final.Count,
+            final.Count(c => c.Label == ClaimLabel.Grounded),
+            final.Count(c => c.Label == ClaimLabel.Inferred),
+            report.Initial?.Unsupported ?? 0,
+            report.DroppedSentences,
+            report.HedgedSentences);
+    }
+
+    private static LessonContextDetail ToContext(StoredEvidence evidence, Photo? photo)
+    {
+        List<string> Display(char prefix) => evidence.Items
+            .Where(i => i.Code.Length > 1 && i.Code[0] == prefix && char.IsDigit(i.Code[1]))
+            .Select(i => i.DisplayVi)
+            .ToList();
+
+        return new LessonContextDetail(
+            evidence.CapturedAtLocal,
+            photo?.Note,
+            photo?.ActivityTag,
+            evidence.MemoryEventsUsed,
+            Display('H'),
+            Display('C'),
+            Display('P'),
+            evidence.UnlabeledPeopleCount);
+    }
+
+    private static int? Sum(int? a, int? b) => a is null && b is null ? null : (a ?? 0) + (b ?? 0);
 
     private static T? Deserialize<T>(string? json) where T : class =>
         string.IsNullOrWhiteSpace(json) ? null : JsonSerializer.Deserialize<T>(json, JsonOptions);

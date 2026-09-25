@@ -25,7 +25,8 @@ public static class UsersEndpoints
             CancellationToken ct) =>
         {
             var profile = await userService.UpdateProfileAsync(
-                currentUser.UserId, request.DisplayName, request.CefrLevel, request.NativeLanguage, ct);
+                currentUser.UserId, request.DisplayName, request.CefrLevel, request.NativeLanguage, ct,
+                request.PersonLabelingEnabled, request.ResearchConsent);
             return Results.Ok(ToResponse(profile));
         })
         .Produces<UserResponse>();
@@ -34,5 +35,6 @@ public static class UsersEndpoints
     }
 
     private static UserResponse ToResponse(UserProfile profile) => new(
-        profile.UserId, profile.Email, profile.DisplayName, profile.CefrLevel, profile.NativeLanguage, profile.CreatedAt);
+        profile.UserId, profile.Email, profile.DisplayName, profile.CefrLevel, profile.NativeLanguage,
+        profile.PersonLabelingEnabled, profile.ResearchConsentAt, profile.CreatedAt);
 }

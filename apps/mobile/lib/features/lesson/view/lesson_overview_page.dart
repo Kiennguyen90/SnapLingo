@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../core/config/app_config.dart';
 import '../../../core/models/lesson.dart';
 import '../../../core/network/api_exception.dart';
 import '../../../core/services/lesson_events.dart';
@@ -17,6 +18,8 @@ import '../../../core/widgets/section_header.dart';
 import '../../../core/widgets/status_views.dart';
 import '../../create_lesson/models/lesson_source.dart';
 import '../../create_lesson/view/emotion_page.dart';
+import '../../create_lesson/view/generating_page.dart';
+import '../widgets/grounding_widgets.dart';
 import '../cubit/lesson_cubit.dart';
 import '../lesson_navigation.dart';
 
@@ -54,9 +57,10 @@ class _OverviewView extends StatelessWidget {
   Future<void> _onMenu(BuildContext context, _MenuAction action, Lesson lesson) async {
     switch (action) {
       case _MenuAction.regenerate:
-        Navigator.of(context, rootNavigator: true).push(EmotionPage.route(
-          RegenerateSource(lessonId: lesson.lessonId, photoId: lesson.photoId, currentEmotion: lesson.emotion),
-        ));
+        final source = RegenerateSource(lessonId: lesson.lessonId, photoId: lesson.photoId, currentEmotion: lesson.emotion);
+        Navigator.of(context, rootNavigator: true).push(
+          AppConfig.emotionSelection ? EmotionPage.route(source) : GeneratingPage.route(source),
+        );
       case _MenuAction.delete:
         final confirmed = await showDialog<bool>(
           context: context,
@@ -100,7 +104,7 @@ class _OverviewView extends StatelessWidget {
                   itemBuilder: (_) => const [
                     PopupMenuItem(
                       value: _MenuAction.regenerate,
-                      child: ListTile(leading: Icon(Icons.autorenew_rounded), title: Text('Tạo lại với cảm xúc khác')),
+                      child: ListTile(leading: Icon(Icons.autorenew_rounded), title: Text('Viết lại câu chuyện')),
                     ),
                     PopupMenuItem(
                       value: _MenuAction.delete,
@@ -165,16 +169,25 @@ class _OverviewBody extends StatelessWidget {
                 children: [
                   Expanded(child: Semantics(header: true, child: Text(lesson.titleEn, style: text.headlineMedium))),
                   const SizedBox(width: 8),
-                  Padding(padding: const EdgeInsets.only(top: 6), child: EmotionChip(lesson.emotion)),
+                  if (lesson.emotion case final emotion?)
+                    Padding(padding: const EdgeInsets.only(top: 6), child: EmotionChip(emotion)),
                 ],
               ),
               if (showVi && lesson.titleVi.isNotEmpty)
                 Text(lesson.titleVi, style: text.titleMedium?.copyWith(color: AppColors.textSecondary, fontWeight: FontWeight.w400)),
               const SizedBox(height: 14),
               RemotePhoto(photoId: lesson.photoId, height: 220, width: double.infinity, radius: 20),
+              if (lesson.grounding case final grounding?) ...[
+                const SizedBox(height: 10),
+                Align(alignment: Alignment.centerLeft, child: GroundingBadge(grounding: grounding)),
+              ],
               if (lesson.scene != null) ...[
                 const SizedBox(height: 12),
                 _SceneCard(scene: lesson.scene!, showVi: showVi),
+              ],
+              if (lesson.context case final ctx?) ...[
+                const SizedBox(height: 12),
+                LessonContextCard(data: ctx),
               ],
               const SizedBox(height: 22),
               SectionHeader(
@@ -198,7 +211,34 @@ class _OverviewBody extends StatelessWidget {
                     ),
                 ],
               ),
-              const SizedBox(height: 22),
+              const SizedBox(height: 4),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: lesson.vocabulary.every((v) => v.saved)
+                    ? Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(Icons.bookmark_rounded, size: 18, color: AppColors.primary),
+                            const SizedBox(width: 6),
+                            Text('Đã lưu tất cả từ vào ôn tập', style: text.bodySmall),
+                          ],
+                        ),
+                      )
+                    : TextButton.icon(
+                        onPressed: () async {
+                          try {
+                            await context.read<LessonCubit>().saveAllWords();
+                          } on ApiException catch (e) {
+                            if (context.mounted) showErrorSnack(context, e.message);
+                          }
+                        },
+                        icon: const Icon(Icons.bookmark_add_outlined),
+                        label: const Text('Lưu tất cả từ vào ôn tập'),
+                      ),
+              ),
+              const SizedBox(height: 14),
               _StepsRow(lesson: lesson, progress: progress),
             ],
           ),

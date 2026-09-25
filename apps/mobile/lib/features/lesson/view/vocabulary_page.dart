@@ -2,7 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../core/models/lesson.dart';
+import '../../../core/network/api_exception.dart';
+import '../../../core/services/lesson_events.dart';
 import '../../../core/services/lesson_progress_store.dart';
+import '../../../core/services/lesson_service.dart';
+import '../../../core/widgets/status_views.dart';
 import '../../../core/settings/settings_cubit.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/app_card.dart';
@@ -29,6 +33,10 @@ class VocabularyPage extends StatefulWidget {
 class _VocabularyPageState extends State<VocabularyPage> {
   late final PageController _pages = PageController(initialPage: widget.initialIndex);
   late int _index = widget.initialIndex;
+  late final Set<String> _saved = {
+    for (final v in widget.lesson.vocabulary)
+      if (v.saved) v.vocabularyId,
+  };
 
   List<VocabularyItem> get _words => widget.lesson.vocabulary;
   bool get _isLast => _index == _words.length - 1;
@@ -37,6 +45,20 @@ class _VocabularyPageState extends State<VocabularyPage> {
   void dispose() {
     _pages.dispose();
     super.dispose();
+  }
+
+  /// The learner decides which words go into spaced-repetition review.
+  Future<void> _toggleSaved(VocabularyItem item) async {
+    final save = !_saved.contains(item.vocabularyId);
+    setState(() => save ? _saved.add(item.vocabularyId) : _saved.remove(item.vocabularyId));
+    try {
+      await context.read<LessonService>().setSaved(widget.lesson.lessonId, vocabularyId: item.vocabularyId, saved: save);
+      if (mounted) context.read<LessonEvents>().notifyChanged();
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      setState(() => save ? _saved.remove(item.vocabularyId) : _saved.add(item.vocabularyId));
+      showErrorSnack(context, e.message);
+    }
   }
 
   Future<void> _next() async {
@@ -76,7 +98,12 @@ class _VocabularyPageState extends State<VocabularyPage> {
                 controller: _pages,
                 itemCount: _words.length,
                 onPageChanged: (i) => setState(() => _index = i),
-                itemBuilder: (context, i) => _WordView(item: _words[i], lesson: widget.lesson),
+                itemBuilder: (context, i) => _WordView(
+                  item: _words[i],
+                  lesson: widget.lesson,
+                  saved: _saved.contains(_words[i].vocabularyId),
+                  onToggleSaved: () => _toggleSaved(_words[i]),
+                ),
               ),
             ),
             Padding(
@@ -113,10 +140,12 @@ class _VocabularyPageState extends State<VocabularyPage> {
 }
 
 class _WordView extends StatelessWidget {
-  const _WordView({required this.item, required this.lesson});
+  const _WordView({required this.item, required this.lesson, required this.saved, required this.onToggleSaved});
 
   final VocabularyItem item;
   final Lesson lesson;
+  final bool saved;
+  final VoidCallback onToggleSaved;
 
   @override
   Widget build(BuildContext context) {
@@ -152,7 +181,20 @@ class _WordView extends StatelessWidget {
                             ],
                           ),
                         ),
-                        SpeakButton(item.word, size: 56),
+                        Column(
+                          children: [
+                            SpeakButton(item.word, size: 56),
+                            const SizedBox(height: 6),
+                            IconButton(
+                              tooltip: saved ? 'Bỏ khỏi danh sách ôn tập' : 'Lưu vào ôn tập',
+                              onPressed: onToggleSaved,
+                              icon: Icon(
+                                saved ? Icons.bookmark_rounded : Icons.bookmark_add_outlined,
+                                color: saved ? AppColors.primary : AppColors.textSecondary,
+                              ),
+                            ),
+                          ],
+                        ),
                       ],
                     ),
                     const SizedBox(height: 14),

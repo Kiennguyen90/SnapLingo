@@ -6,4 +6,6 @@ public sealed record UserResponse(
     string? DisplayName,
     string CefrLevel,
     string? NativeLanguage,
+    bool PersonLabelingEnabled,
+    DateTimeOffset? ResearchConsentAt,
     DateTimeOffset CreatedAt);

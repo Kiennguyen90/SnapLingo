@@ -260,8 +260,10 @@ class _LessonRow extends StatelessWidget {
                 const SizedBox(height: 8),
                 Row(
                   children: [
-                    EmotionChip(summary.emotion),
-                    const SizedBox(width: 8),
+                    if (summary.emotion case final emotion?) ...[
+                      EmotionChip(emotion),
+                      const SizedBox(width: 8),
+                    ],
                     if (!completed)
                       Text('Chưa hoàn tất', style: text.labelSmall?.copyWith(color: AppColors.error))
                     else if (progress.isFinished)

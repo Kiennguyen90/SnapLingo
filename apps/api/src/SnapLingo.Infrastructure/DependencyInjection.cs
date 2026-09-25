@@ -10,6 +10,7 @@ using SnapLingo.Application.Media;
 using SnapLingo.Infrastructure.Ai;
 using SnapLingo.Infrastructure.Audio;
 using SnapLingo.Application.Music;
+using SnapLingo.Application.Stories;
 using SnapLingo.Infrastructure.Auth;
 using SnapLingo.Infrastructure.Common;
 using SnapLingo.Infrastructure.Music;
@@ -45,6 +46,8 @@ public static class DependencyInjection
         services.Configure<JwtOptions>(configuration.GetSection(JwtOptions.SectionName));
         services.Configure<OpenAiOptions>(configuration.GetSection(OpenAiOptions.SectionName));
         services.Configure<GoogleAuthOptions>(configuration.GetSection(GoogleAuthOptions.SectionName));
+        services.Configure<StoryPipelineOptions>(configuration.GetSection(StoryPipelineOptions.SectionName));
+        services.Configure<FeatureOptions>(configuration.GetSection(FeatureOptions.SectionName));
 
         services.AddSingleton<SignedUrlSigner>();
         services.AddSingleton<IObjectStorage, LocalObjectStorage>();
@@ -73,10 +76,18 @@ public static class DependencyInjection
             // registers (transient-per-resolve, pooled handlers) — a Singleton would
             // capture one HttpClient for the app's whole lifetime (captive dependency).
             services.AddScoped<ILessonGenerator, OpenAiLessonGenerator>();
+            services.AddScoped<IEventExtractor, OpenAiEventExtractor>();
+            services.AddScoped<IClaimJudge, OpenAiClaimJudge>();
+            services.AddScoped<ITextEmbedder, OpenAiTextEmbedder>();
         }
         else
         {
+            // The whole grounded pipeline (Modules 1–4) keeps working offline: deterministic
+            // fakes that follow the same contracts, plus a real (hashing) text embedder.
             services.AddSingleton<ILessonGenerator, FakeLessonGenerator>();
+            services.AddSingleton<IEventExtractor, FakeEventExtractor>();
+            services.AddSingleton<IClaimJudge, CitationClaimJudge>();
+            services.AddSingleton<ITextEmbedder, HashingTextEmbedder>();
         }
 
         // TTS is still Phase 5 / fake regardless of the OpenAI switch above.

@@ -6,6 +6,7 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/app_card.dart';
 import '../../review/view/review_page.dart';
 import '../../shell/shell_controller.dart';
+import '../widgets/feedback_card.dart';
 
 /// Shown after the last quiz question: score, and what happens to the words next.
 class LessonCompletePage extends StatelessWidget {
@@ -31,11 +32,10 @@ class LessonCompletePage extends StatelessWidget {
 
     return Scaffold(
       body: SafeArea(
-        child: Padding(
+        child: SingleChildScrollView(
           padding: const EdgeInsets.fromLTRB(24, 32, 24, 16),
           child: Column(
             children: [
-              const Spacer(),
               ExcludeSemantics(child: Text(emoji, style: const TextStyle(fontSize: 80))),
               const SizedBox(height: 12),
               Semantics(header: true, child: Text(headline, style: text.headlineMedium, textAlign: TextAlign.center)),
@@ -59,14 +59,16 @@ class LessonCompletePage extends StatelessWidget {
                     const SizedBox(width: 12),
                     Expanded(
                       child: Text(
-                        'Các từ trong bài sẽ quay lại trong phần Ôn tập sau 1, 3, 7 và 14 ngày – kèm chính bức ảnh của bạn để dễ nhớ.',
+                        'Những từ bạn đã lưu (🔖) sẽ quay lại trong phần Ôn tập sau 1, 3, 7 và 14 ngày – kèm chính bức ảnh của bạn để dễ nhớ.',
                         style: text.bodySmall?.copyWith(color: AppColors.textPrimary),
                       ),
                     ),
                   ],
                 ),
               ),
-              const Spacer(flex: 2),
+              const SizedBox(height: 16),
+              StoryFeedbackCard(lessonId: lesson.lessonId, initial: lesson.feedback),
+              const SizedBox(height: 24),
               FilledButton(
                 onPressed: () {
                   final shell = context.read<ShellController>();

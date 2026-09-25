@@ -62,6 +62,14 @@ class LessonCubit extends Cubit<LessonState> {
     }
   }
 
+  /// Saves every word of the lesson to the review list. Throws [ApiException].
+  Future<void> saveAllWords() async {
+    await _lessons.setSaved(lessonId, saved: true);
+    final lesson = await _lessons.get(lessonId); // cache already updated
+    emit(LessonState(status: LessonLoadStatus.success, lesson: lesson, progress: state.progress));
+    _events.notifyChanged();
+  }
+
   /// Throws [ApiException] so the page can show the reason.
   Future<void> delete() async {
     await _lessons.delete(lessonId);

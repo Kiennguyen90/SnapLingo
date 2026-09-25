@@ -14,10 +14,11 @@ public sealed class InvalidLessonGenerator : ILessonGenerator
                 Vocabulary: [], // empty -> fails the vocabulary-count guardrail
                 ContextEn: "context",
                 ContextVi: "boi canh",
-                new GeneratedStory("Title", "Tieu de", "Text", "Noi dung"),
+                Story: new GeneratedStory("Title", "Tieu de", [new GeneratedStorySentence("Text.", "Noi dung.", ["I1"])]),
+                Patterns: [],
                 Dialogue: [new GeneratedDialogueTurn("A", "Hi", "Chao")],
                 Quiz: [new GeneratedQuizItem("multiple_choice", "Q", "Cau hoi", ["a", "b"], "a", null, null)],
-                new GeneratedTts([], "Text", "Hi", "hint")),
+                Tts: new GeneratedTts([], "Text", "Hi", "hint")),
             InputTokens: null,
             OutputTokens: null));
 }

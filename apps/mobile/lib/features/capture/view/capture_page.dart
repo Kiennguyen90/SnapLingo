@@ -6,7 +6,7 @@ import 'package:image_picker/image_picker.dart';
 
 import '../../../core/theme/app_colors.dart';
 import '../../create_lesson/models/lesson_source.dart';
-import '../../create_lesson/view/emotion_page.dart';
+import '../../create_lesson/view/context_page.dart';
 
 /// Screen 03 — live viewfinder with flash, camera flip, zoom presets and a gallery
 /// shortcut. Falls back to the gallery when no camera is available/permitted.
@@ -109,7 +109,7 @@ class _CapturePageState extends State<CapturePage> with WidgetsBindingObserver {
     setState(() => _busy = true);
     try {
       final shot = await controller.takePicture();
-      _continueWith(File(shot.path));
+      _continueWith(File(shot.path), DateTime.now());
     } on CameraException catch (e) {
       _fail(_describe(e));
     } finally {
@@ -119,12 +119,17 @@ class _CapturePageState extends State<CapturePage> with WidgetsBindingObserver {
 
   Future<void> _pickFromGallery() async {
     final picked = await ImagePicker().pickImage(source: ImageSource.gallery, maxWidth: 2048, imageQuality: 88);
-    if (picked != null) _continueWith(File(picked.path));
+    if (picked == null) return;
+    // Best guess for a gallery photo's capture time; the learner confirms or edits it next.
+    final file = File(picked.path);
+    _continueWith(file, await picked.lastModified());
   }
 
-  void _continueWith(File file) {
+  void _continueWith(File file, DateTime capturedAt) {
     if (!mounted) return;
-    Navigator.of(context).push(EmotionPage.route(NewPhotoSource(file)));
+    Navigator.of(context).push(
+      ContextPage.route(NewPhotoSource(file, context: CaptureContext(capturedAt: capturedAt))),
+    );
   }
 
   Future<void> _toggleFlash() async {

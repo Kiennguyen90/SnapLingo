@@ -2,10 +2,12 @@ import 'package:flutter/material.dart';
 
 import '../../../core/models/emotion.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/widgets/step_bar.dart';
 import '../models/lesson_source.dart';
 import 'generating_page.dart';
 
-/// Screen 04 — "Bạn đang cảm thấy thế nào?" (step 2/3 of creating a lesson).
+/// Screen 04 — "Bạn đang cảm thấy thế nào?". Parked future feature: only reachable when
+/// built with EMOTION_SELECTION=true (AppConfig.emotionSelection); kept intact for later.
 class EmotionPage extends StatefulWidget {
   const EmotionPage({required this.source, super.key});
 
@@ -36,7 +38,7 @@ class _EmotionPageState extends State<EmotionPage> {
           if (!_isRegenerate)
             Padding(
               padding: const EdgeInsets.only(right: 20),
-              child: Center(child: Text('Bước 2/3', style: text.bodySmall)),
+              child: Center(child: Text('Bước 3/3', style: text.bodySmall)),
             ),
         ],
       ),
@@ -48,7 +50,7 @@ class _EmotionPageState extends State<EmotionPage> {
               child: ListView(
                 padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
                 children: [
-                  if (!_isRegenerate) const _StepBar(current: 2, total: 3),
+                  if (!_isRegenerate) const StepBar(current: 3, total: 3),
                   const SizedBox(height: 20),
                   Text(_isRegenerate ? 'Tạo lại bài học' : 'Chọn cảm xúc', style: text.bodyMedium),
                   const SizedBox(height: 4),
@@ -93,7 +95,7 @@ class _EmotionPageState extends State<EmotionPage> {
               child: FilledButton(
                 onPressed: _selected == null
                     ? null
-                    : () => Navigator.of(context).push(GeneratingPage.route(widget.source, _selected!)),
+                    : () => Navigator.of(context).push(GeneratingPage.route(widget.source, emotion: _selected)),
                 child: Text(_isRegenerate ? 'Tạo lại bài học' : 'Tiếp tục'),
               ),
             ),
@@ -114,37 +116,6 @@ class _EmotionPageState extends State<EmotionPage> {
             ),
           ],
         ),
-      ),
-    );
-  }
-}
-
-class _StepBar extends StatelessWidget {
-  const _StepBar({required this.current, required this.total});
-
-  final int current;
-  final int total;
-
-  @override
-  Widget build(BuildContext context) {
-    return Semantics(
-      label: 'Bước $current trên $total',
-      excludeSemantics: true,
-      child: Row(
-        children: [
-          for (var i = 1; i <= total; i++) ...[
-            Expanded(
-              child: Container(
-                height: 6,
-                decoration: BoxDecoration(
-                  color: i <= current ? AppColors.primary : AppColors.border,
-                  borderRadius: BorderRadius.circular(4),
-                ),
-              ),
-            ),
-            if (i < total) const SizedBox(width: 6),
-          ],
-        ],
       ),
     );
   }

@@ -21,6 +21,10 @@ public interface IAppDbContext
     DbSet<UserVocabularyProgress> UserVocabularyProgresses { get; }
     DbSet<ReviewEvent> ReviewEvents { get; }
     DbSet<AiGenerationLog> AiGenerationLogs { get; }
+    DbSet<PhotoEvent> PhotoEvents { get; }
+    DbSet<Person> People { get; }
+    DbSet<PhotoPerson> PhotoPeople { get; }
+    DbSet<LessonFeedback> LessonFeedbacks { get; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }

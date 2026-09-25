@@ -9,6 +9,7 @@ import '../../../core/widgets/app_card.dart';
 import '../../../core/widgets/status_views.dart';
 import '../../auth/cubit/auth_cubit.dart';
 import '../../auth/view/register_page.dart';
+import '../../people/view/people_page.dart';
 import 'accessibility_page.dart';
 
 /// "Cài đặt" tab — profile, learning preferences, accessibility, sign out.
@@ -97,6 +98,8 @@ class SettingsPage extends StatelessWidget {
               ],
             ),
           ),
+          const SizedBox(height: 16),
+          if (profile != null) _PrivacyCard(profile: profile),
           const SizedBox(height: 16),
           AppCard(
             padding: EdgeInsets.zero,
@@ -196,6 +199,100 @@ class _ProfileSheetState extends State<_ProfileSheet> {
           CefrPicker(value: _cefr, onChanged: (v) => setState(() => _cefr = v)),
           const SizedBox(height: 24),
           FilledButton(onPressed: _saving ? null : _save, child: Text(_saving ? 'Đang lưu…' : 'Lưu')),
+        ],
+      ),
+    );
+  }
+}
+
+/// Opt-in person labels and research consent (proposal §3.4).
+class _PrivacyCard extends StatelessWidget {
+  const _PrivacyCard({required this.profile});
+
+  final UserProfile profile;
+
+  Future<void> _update(BuildContext context, {bool? labeling, bool? consent}) async {
+    try {
+      await context.read<AuthCubit>().updateProfile(personLabelingEnabled: labeling, researchConsent: consent);
+    } on ApiException catch (e) {
+      if (context.mounted) showErrorSnack(context, e.message);
+    }
+  }
+
+  Future<void> _toggleLabeling(BuildContext context, bool on) async {
+    if (on) {
+      final ok = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Gắn nhãn người thân'),
+          content: const Text(
+            'Bạn tự cho biết ai có trong ảnh (VD: Mẹ, Em trai – Tuấn). SnapLingo không nhận diện khuôn mặt và '
+            'không bao giờ đoán danh tính người lạ. Câu chuyện chỉ nhắc tên người bạn đã gắn nhãn. '
+            'Bạn có thể xóa nhãn bất cứ lúc nào.',
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Hủy')),
+            FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('Bật')),
+          ],
+        ),
+      );
+      if (ok != true || !context.mounted) return;
+    }
+    await _update(context, labeling: on);
+  }
+
+  Future<void> _toggleConsent(BuildContext context, bool on) async {
+    if (on) {
+      final ok = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Tham gia nghiên cứu'),
+          content: const Text(
+            'Dữ liệu sử dụng ẩn danh (câu chuyện, báo cáo kiểm chứng, điểm đánh giá, từ đã lưu) có thể được dùng '
+            'cho nghiên cứu luận văn về câu chuyện học tiếng Anh có căn cứ. Ảnh có người thân hoặc trẻ vị thành niên '
+            'không được đưa vào bộ dữ liệu công bố. Bạn có thể rút lại đồng ý bất cứ lúc nào.',
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Không')),
+            FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('Đồng ý')),
+          ],
+        ),
+      );
+      if (ok != true || !context.mounted) return;
+    }
+    await _update(context, consent: on);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AppCard(
+      padding: EdgeInsets.zero,
+      child: Column(
+        children: [
+          SwitchListTile(
+            secondary: const Icon(Icons.people_outline_rounded),
+            title: const Text('Gắn nhãn người thân'),
+            subtitle: const Text('Để câu chuyện nhắc đúng người trong ảnh'),
+            value: profile.personLabelingEnabled,
+            onChanged: (v) => _toggleLabeling(context, v),
+          ),
+          if (profile.personLabelingEnabled) ...[
+            const Divider(indent: 56),
+            ListTile(
+              leading: const Icon(Icons.badge_outlined),
+              title: const Text('Người thân của bạn'),
+              trailing: const Icon(Icons.chevron_right_rounded),
+              onTap: () => Navigator.of(context).push(PeoplePage.route()),
+            ),
+          ],
+          const Divider(indent: 56),
+          SwitchListTile(
+            secondary: const Icon(Icons.science_outlined),
+            title: const Text('Tham gia nghiên cứu'),
+            subtitle: const Text('Đồng ý dùng dữ liệu ẩn danh cho nghiên cứu'),
+            value: profile.researchConsent,
+            onChanged: (v) => _toggleConsent(context, v),
+          ),
         ],
       ),
     );

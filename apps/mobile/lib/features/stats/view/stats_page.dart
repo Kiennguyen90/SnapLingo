@@ -93,7 +93,8 @@ class _StatsViewState extends State<_StatsView> {
           }
 
           final (inRange, bars) = _slice(state.lessons);
-          final words = inRange.fold<int>(0, (sum, l) => sum + (state.vocabCounts[l.lessonId] ?? 0));
+          final words = inRange.fold<int>(0, (sum, l) => sum + (state.details[l.lessonId]?.vocabulary.length ?? 0));
+          final inRangeDetails = [for (final l in inRange) ?state.details[l.lessonId]];
           final thisWeek = LearningStats.lessonsThisWeek(state.lessons);
 
           return RefreshIndicator(
@@ -135,7 +136,12 @@ class _StatsViewState extends State<_StatsView> {
                 const SizedBox(height: 14),
                 if (thisWeek > 0) _Banner(thisWeek: thisWeek),
                 const SizedBox(height: 14),
-                _EmotionBreakdown(lessons: inRange),
+                _GroundingCard(lessons: inRangeDetails),
+                // Emotion stats only exist for lessons made with the (parked) emotion feature.
+                if (inRange.any((l) => l.emotion != null)) ...[
+                  const SizedBox(height: 14),
+                  _EmotionBreakdown(lessons: inRange),
+                ],
               ],
             ),
           );
@@ -248,6 +254,79 @@ class _EmotionBreakdown extends StatelessWidget {
                 ),
               ),
             ),
+        ],
+      ),
+    );
+  }
+}
+
+/// How true the stories were (proposal's core metric) and how learners rated them.
+class _GroundingCard extends StatelessWidget {
+  const _GroundingCard({required this.lessons});
+
+  final List<Lesson> lessons;
+
+  @override
+  Widget build(BuildContext context) {
+    final verified = lessons.map((l) => l.grounding).whereType<GroundingSummary>().where((g) => g.verified).toList();
+    if (verified.isEmpty) return const SizedBox.shrink();
+    final text = Theme.of(context).textTheme;
+
+    final claims = verified.fold<int>(0, (s, g) => s + g.claims);
+    final grounded = verified.fold<int>(0, (s, g) => s + g.grounded);
+    final caught = verified.fold<int>(0, (s, g) => s + g.unsupportedFound);
+    final ratio = claims == 0 ? 0.0 : grounded / claims;
+
+    double? average(Iterable<int?> values) {
+      final list = values.whereType<int>().toList();
+      return list.isEmpty ? null : list.reduce((a, b) => a + b) / list.length;
+    }
+
+    final satisfaction = average(lessons.map((l) => l.feedback?.satisfaction));
+    final usefulness = average(lessons.map((l) => l.feedback?.usefulness));
+
+    return AppCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('Độ bám sát dữ kiện', style: text.titleMedium),
+          const SizedBox(height: 10),
+          Semantics(
+            label: '${(ratio * 100).round()} phần trăm phát biểu có căn cứ',
+            excludeSemantics: true,
+            child: Row(
+              children: [
+                Expanded(
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(4),
+                    child: LinearProgressIndicator(
+                      value: ratio,
+                      minHeight: 8,
+                      color: AppColors.success,
+                      backgroundColor: AppColors.surfaceMuted,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Text('${(ratio * 100).round()}%', style: text.labelLarge),
+              ],
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text('$grounded/$claims phát biểu có căn cứ trong ${verified.length} câu chuyện đã kiểm chứng.', style: text.bodySmall),
+          if (caught > 0)
+            Text('Bộ kiểm chứng đã chặn $caught phát biểu không có căn cứ trước khi hiển thị.', style: text.bodySmall),
+          if (satisfaction != null || usefulness != null) ...[
+            const SizedBox(height: 10),
+            Row(
+              children: [
+                if (satisfaction != null)
+                  Expanded(child: Text('Hài lòng: ${satisfaction.toStringAsFixed(1)}/5', style: text.bodyMedium)),
+                if (usefulness != null)
+                  Expanded(child: Text('Hữu ích: ${usefulness.toStringAsFixed(1)}/5', style: text.bodyMedium)),
+              ],
+            ),
+          ],
         ],
       ),
     );

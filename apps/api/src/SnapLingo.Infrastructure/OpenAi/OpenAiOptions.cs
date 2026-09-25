@@ -16,7 +16,21 @@ public sealed class OpenAiOptions
     /// <summary>Must support vision (image input) + Structured Outputs. Kept in config per spec — never hard-coded.</summary>
     public string Model { get; set; } = "gpt-4o";
 
-    public double Temperature { get; set; } = 0.5;
+    /// <summary>Raised from 0.5 — at 0.5 the story read like a checklist (one flat sentence
+    /// per vocabulary word); higher lets the model vary sentence structure and phrasing while
+    /// the prompt's own grounding rules (never invent visual facts) keep it from drifting.</summary>
+    public double Temperature { get; set; } = 0.8;
+
+    /// <summary>Vision model for Module 1 (event extraction). Run at temperature 0: it records
+    /// facts, and the same photo should always yield the same event.</summary>
+    public string ExtractorModel { get; set; } = "gpt-4o";
+
+    /// <summary>Model for the grounding judge (Module 4b). A smaller model keeps verification
+    /// cheap (proposal risk table: "use a small model for the verification step"); temperature 0.</summary>
+    public string VerifierModel { get; set; } = "gpt-4o-mini";
+
+    /// <summary>Embedding model for memory retrieval (Module 2).</summary>
+    public string EmbeddingModel { get; set; } = "text-embedding-3-small";
 
     public int TimeoutSeconds { get; set; } = 60;
 

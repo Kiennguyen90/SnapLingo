@@ -66,7 +66,7 @@ class _ReviewView extends StatelessWidget {
               ReviewStatus.ready when state.items.isEmpty => EmptyView(
                   icon: Icons.task_alt_rounded,
                   title: 'Không có từ nào cần ôn',
-                  message: 'Bạn đã ôn hết từ hôm nay. Hãy học một bài mới từ ảnh để có thêm từ vựng!',
+                  message: 'Bạn đã ôn hết từ hôm nay. Muốn ôn thêm? Lưu từ (🔖) trong phần Từ vựng của một bài học.',
                   action: OutlinedButton(
                     onPressed: () => Navigator.of(context).pop(),
                     style: OutlinedButton.styleFrom(minimumSize: const Size(160, 48)),
