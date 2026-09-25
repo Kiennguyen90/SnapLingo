@@ -26,6 +26,7 @@ public sealed class StoryPipeline(ILessonGenerator generator, GroundingVerifier 
         var tokens = new TokenTally();
         var rounds = new List<RoundMetrics>();
         var rejected = new List<RejectedSentence>();
+        var rejectedLog = new List<RejectedClaimRecord>();
 
         for (var round = 0; ; round++)
         {
@@ -47,6 +48,10 @@ public sealed class StoryPipeline(ILessonGenerator generator, GroundingVerifier 
             rounds.Add(pass.Metrics);
 
             var unsupported = pass.Unsupported.ToList();
+            rejectedLog.AddRange(unsupported.Select(s => new RejectedClaimRecord(
+                round,
+                s.Sentence.En,
+                s.Claims.FirstOrDefault(c => c.Label == ClaimLabel.Unsupported)?.Reason ?? "Not supported by the evidence.")));
             if (unsupported.Count > 0 && round < maxRegenerations)
             {
                 // Keep earlier rejections too, so a regenerated story doesn't reintroduce them.
@@ -70,7 +75,8 @@ public sealed class StoryPipeline(ILessonGenerator generator, GroundingVerifier 
                 verifierMode, memoryMode, round, rounds, report,
                 report.Count(r => r.Action == SentenceAction.Dropped),
                 report.Count(r => r.Action == SentenceAction.Hedged),
-                verifier.JudgeModel);
+                verifier.JudgeModel,
+                rejectedLog);
 
             return new PipelineResult(final, grounding, tokens.Input, tokens.Output);
         }

@@ -44,14 +44,19 @@ class _CapturePageState extends State<CapturePage> with WidgetsBindingObserver {
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    // The camera must be released while backgrounded, or other apps can't use it.
+    // The camera must be released while backgrounded, or other apps can't use it. But the
+    // runtime permission dialog also makes the app "inactive" while the controller is still
+    // initializing; disposing it then breaks the initialization, so only release a ready one.
     if (state == AppLifecycleState.inactive) {
       final controller = _controller;
-      if (controller == null) return;
+      if (controller == null || !controller.value.isInitialized) return;
       setState(() => _controller = null);
       controller.dispose();
-    } else if (state == AppLifecycleState.resumed && _controller == null && _cameras.isNotEmpty) {
-      _start(_cameras[_cameraIndex]);
+    } else if (state == AppLifecycleState.resumed && _cameras.isNotEmpty) {
+      final controller = _controller;
+      if (controller == null || _error != null) {
+        _start(_cameras[_cameraIndex]);
+      }
     }
   }
 
@@ -79,6 +84,7 @@ class _CapturePageState extends State<CapturePage> with WidgetsBindingObserver {
     await old?.dispose();
     try {
       await controller.initialize();
+      if (!identical(controller, _controller)) return; // superseded by a newer start
       final (min, max) = (await controller.getMinZoomLevel(), await controller.getMaxZoomLevel());
       await controller.setFlashMode(_flash).catchError((_) {});
       if (!mounted) return;
@@ -89,7 +95,7 @@ class _CapturePageState extends State<CapturePage> with WidgetsBindingObserver {
         _zoom = 1.0.clamp(min, max);
       });
     } on CameraException catch (e) {
-      _fail(_describe(e));
+      if (identical(controller, _controller)) _fail(_describe(e));
     }
   }
 
@@ -120,12 +126,13 @@ class _CapturePageState extends State<CapturePage> with WidgetsBindingObserver {
   Future<void> _pickFromGallery() async {
     final picked = await ImagePicker().pickImage(source: ImageSource.gallery, maxWidth: 2048, imageQuality: 88);
     if (picked == null) return;
-    // Best guess for a gallery photo's capture time; the learner confirms or edits it next.
-    final file = File(picked.path);
-    _continueWith(file, await picked.lastModified());
+    // No capture time for gallery photos: the picker hands us a fresh copy, so the file date
+    // would be "now". The server reads the photo's own EXIF DateTimeOriginal instead; the
+    // learner can still set the time explicitly on the next screen.
+    _continueWith(File(picked.path), null);
   }
 
-  void _continueWith(File file, DateTime capturedAt) {
+  void _continueWith(File file, DateTime? capturedAt) {
     if (!mounted) return;
     Navigator.of(context).push(
       ContextPage.route(NewPhotoSource(file, context: CaptureContext(capturedAt: capturedAt))),

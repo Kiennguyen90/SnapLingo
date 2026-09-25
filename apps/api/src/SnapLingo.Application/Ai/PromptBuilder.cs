@@ -11,11 +11,12 @@ namespace SnapLingo.Application.Ai;
 public static class PromptBuilder
 {
     /// <summary>
-    /// lesson-v2.0.0: grounded, memory-augmented story (evidence codes per sentence, sentence
-    /// patterns, no emotion by default). Bumping this also makes <c>LessonService</c>'s reuse
+    /// lesson-v2.1.0: grounded, memory-augmented story (evidence codes per sentence, sentence
+    /// patterns, no emotion by default); 2.1 forbids assuming the learner is the pictured person
+    /// and inventing dialogue speakers (found in the first real-photo test). Bumping this also makes <c>LessonService</c>'s reuse
     /// lookup treat every lesson from the emotion-driven v1.x prompts as a cache miss.
     /// </summary>
-    public const string PromptVersion = "lesson-v2.0.0";
+    public const string PromptVersion = "lesson-v2.1.0";
 
     public static string Build(GenerateLessonInput input)
     {
@@ -30,6 +31,7 @@ public static class PromptBuilder
         sb.AppendLine("1. Every story sentence must be supported by the EVIDENCE below, and must list the codes it uses in \"evidence\" (e.g. [\"I2\",\"T1\"]).");
         sb.AppendLine("2. Never invent people, places, actions, crowds, conversations or plans that are not in the evidence. If the photo shows one cup of coffee, do not write \"with my friends\".");
         sb.AppendLine("3. People: only name or give a relation (mom, brother, grandmother, friend...) to people with a P code, using exactly that name/relation. People under U1 must never be named or given a relation; describe only what is visible and hedge (\"maybe she is visiting\").");
+        sb.AppendLine("   The learner (\"I\") is NOT the person in the photo unless a P code says \"I\"/self: the learner may be the one taking the photo. Without that label, describe visible people in the third person (\"a woman in sunglasses\"), never as \"I am wearing...\".");
         sb.AppendLine("4. Habits: only say \"usually/often/every.../on weekdays\" when an H code supports it, and cite that H code. A single past photo is not a habit.");
         sb.AppendLine("5. Time: day and time of day must match T1. Contrasts with the past (\"But today...\") must cite a C code.");
         sb.AppendLine("6. Anything you infer but cannot cite must be hedged with \"maybe\", \"it seems\", \"probably\" and given an empty evidence list. Keep inferences to at most one sentence.");
@@ -89,7 +91,7 @@ public static class PromptBuilder
         sb.AppendLine("   - weave the vocabulary in naturally: each word should be part of what is happening, not a caption on its own sentence;");
         sb.AppendLine($"3. vocabulary: {p.VocabularyMin}-{p.VocabularyMax} words that appear in the story or are clearly visible, with IPA, part of speech, Vietnamese meaning, example sentence (EN + VI) and a visual anchor,");
         sb.AppendLine("4. patterns: 1-3 sentence structures taken from the story (e.g. present simple for habits \"On weekdays, I often + V\", contrast \"But today...\"), each with a Vietnamese name, a short Vietnamese explanation and the exact story sentence as example,");
-        sb.AppendLine("5. a short real-life context sentence and a short dialogue (2-4 turns) set in this same moment, using only evidence-supported facts,");
+        sb.AppendLine("5. a short real-life context sentence and a short dialogue (2-4 turns) set in this same moment, using only evidence-supported facts; label speakers \"A\" and \"B\" and do not introduce friends, family or anyone else who is not in the evidence,");
         sb.AppendLine($"6. {p.QuizItemMin}-{p.QuizItemMax} quiz items that test this lesson's vocabulary and patterns (options/correctAnswer in English, one unambiguous answer),");
         sb.AppendLine("7. TTS-ready English text.");
         sb.AppendLine();

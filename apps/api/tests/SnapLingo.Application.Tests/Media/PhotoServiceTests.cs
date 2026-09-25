@@ -39,6 +39,27 @@ public class PhotoServiceTests
         new(db, storage, new FixedDateTimeProvider(Now), Options.Create(new PhotoOptions()));
 
     [Fact]
+    public async Task UploadAsync_AppliesExifOrientationBeforeStrippingIt()
+    {
+        // A portrait phone photo: landscape pixels (8x4) + Orientation=6 ("rotate 90° CW").
+        using var image = new Image<Rgba32>(8, 4);
+        image.Metadata.ExifProfile = new ExifProfile();
+        image.Metadata.ExifProfile.SetValue(ExifTag.Orientation, (ushort)6);
+        using var buffer = new MemoryStream();
+        image.Save(buffer, new JpegEncoder());
+
+        await using var db = CreateDb();
+        var storage = new InMemoryObjectStorage();
+        await using var input = new MemoryStream(buffer.ToArray());
+        var result = await CreateService(db, storage).UploadAsync(Guid.NewGuid(), input, "image/jpeg", CancellationToken.None);
+
+        await using var stored = await storage.OpenReadAsync(result.Photo.ObjectKey, CancellationToken.None);
+        using var reloaded = await Image.LoadAsync(stored);
+        Assert.Equal((4, 8), (reloaded.Width, reloaded.Height)); // upright, without needing the flag
+        Assert.Null(reloaded.Metadata.ExifProfile);
+    }
+
+    [Fact]
     public async Task UploadAsync_StripsExifAndGpsAndComputesHash()
     {
         await using var db = CreateDb();

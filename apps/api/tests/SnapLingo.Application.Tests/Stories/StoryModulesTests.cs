@@ -147,6 +147,18 @@ public class ClaimRulesTests
     }
 
     [Fact]
+    public void PicturedPersonIsNotTheLearnerUnlessLabeledSelf()
+    {
+        // Bundle() has PeopleCount = 1 and no labels.
+        Assert.Equal(ClaimLabel.Unsupported, Check("I am wearing sunglasses and holding a hat.", ["I1"], Bundle()).Label);
+        Assert.Equal(ClaimLabel.Grounded, Check("She is wearing sunglasses.", ["I1"], Bundle()).Label);
+        Assert.Equal(ClaimLabel.Grounded, Check("I am visiting a garden.", ["I1"], Bundle()).Label);
+
+        var selfie = Bundle([new LabeledPerson("P1", Guid.NewGuid(), null, "self")]);
+        Assert.Equal(ClaimLabel.Grounded, Check("I am wearing sunglasses.", ["I1", "P1"], selfie).Label);
+    }
+
+    [Fact]
     public void UnknownCodesCountAsNoEvidence() =>
         Assert.Equal(ClaimLabel.Unsupported, Check("The table is small.", ["Z9"], Bundle()).Label);
 }

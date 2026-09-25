@@ -39,6 +39,10 @@ public static class ClaimRules
     private static readonly string[] DayNames =
         ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"];
 
+    private static readonly Regex SelfAsSubject = new(
+        @"\bI(?:\s+am|'m)\s+(?:wearing|holding|standing|sitting|posing|smiling|carrying|walking|looking)\b",
+        RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
+
     public static bool IsHedged(string text) => HedgeWords.Any(w => ContainsPhrase(text, w));
 
     public static bool IsHabitClaim(string text) => HabitWords.Any(w => ContainsPhrase(text, w));
@@ -115,6 +119,16 @@ public static class ClaimRules
             {
                 Downgrade($"Mentions \"{unlabeled[0]}\", but no one with that role is labeled in this photo.");
             }
+        }
+
+        // 3b. Identity: "I am wearing/holding..." describes the pictured person as the learner.
+        //     Unless the learner labeled themselves in this photo, they may be the photographer,
+        //     so that is an identity claim without evidence (proposal example 2).
+        if (evidence.PeopleCount > 0
+            && !evidence.People.Any(p => p.Relation == "self")
+            && SelfAsSubject.IsMatch(text))
+        {
+            Downgrade("Describes the person in the photo as \"I\", but the learner is not labeled in this photo.");
         }
 
         // 4. Habits: a claim that something happens regularly needs a detected habit (H), or a

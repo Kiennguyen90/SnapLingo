@@ -150,15 +150,8 @@ class _StoryPageState extends State<StoryPage> {
                     children: [
                       Icon(_sourceIcon(source.kind), size: 20, color: AppColors.primary),
                       const SizedBox(width: 10),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(source.kind.labelVi, style: text.labelMedium?.copyWith(color: AppColors.textSecondary)),
-                            Text(source.displayVi, style: text.bodyMedium),
-                          ],
-                        ),
-                      ),
+                      // displayVi already starts with its own label ("Ảnh hiện tại: ...").
+                      Expanded(child: Text(source.displayVi, style: text.bodyMedium)),
                     ],
                   ),
                 ),

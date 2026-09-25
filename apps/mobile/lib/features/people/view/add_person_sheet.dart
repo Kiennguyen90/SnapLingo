@@ -68,7 +68,8 @@ class _AddPersonSheetState extends State<_AddPersonSheet> {
         builder: (context, snap) {
           if (snap.hasError) return const ErrorView(message: 'Không tải được danh sách quan hệ.');
           if (!snap.hasData) return const SizedBox(height: 160, child: LoadingView());
-          final relations = snap.data!.where((r) => r.key != 'self').toList();
+          // "Chính tôi" is allowed: labeling yourself is what lets a story say "I am wearing...".
+          final relations = snap.data!;
 
           return Column(
             mainAxisSize: MainAxisSize.min,

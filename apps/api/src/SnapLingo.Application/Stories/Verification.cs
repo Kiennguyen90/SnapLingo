@@ -64,6 +64,10 @@ public sealed record RoundMetrics(
     int PersonalClaims,
     int UnsupportedPersonalClaims);
 
+/// <summary>A sentence the verifier rejected in some round and sent back for regeneration:
+/// the concrete hallucinations the verifier caught (proposal RQ3).</summary>
+public sealed record RejectedClaimRecord(int Round, string En, string Reason);
+
 public sealed record GroundingReport(
     VerifierMode Mode,
     MemoryMode MemoryMode,
@@ -72,7 +76,8 @@ public sealed record GroundingReport(
     IReadOnlyList<ReportSentence> Sentences,
     int DroppedSentences,
     int HedgedSentences,
-    string? JudgeModel)
+    string? JudgeModel,
+    IReadOnlyList<RejectedClaimRecord>? Rejected = null)
 {
     public RoundMetrics? Initial => Rounds.Count > 0 ? Rounds[0] : null;
     public RoundMetrics? Final => Rounds.Count > 0 ? Rounds[^1] : null;

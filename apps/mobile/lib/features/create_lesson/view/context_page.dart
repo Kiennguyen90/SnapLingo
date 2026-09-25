@@ -131,9 +131,13 @@ class _ContextPageState extends State<ContextPage> {
                             children: [
                               Text('Chụp lúc', style: text.bodySmall),
                               Text(
-                                captured == null ? 'Chưa rõ' : '${ViDate.weekday(captured)}, ${ViDate.short(captured)} · ${ViDate.clock(captured)}',
+                                captured == null
+                                    ? 'Theo thông tin trong ảnh'
+                                    : '${ViDate.weekday(captured)}, ${ViDate.short(captured)} · ${ViDate.clock(captured)}',
                                 style: text.titleMedium,
                               ),
+                              if (captured == null)
+                                Text('Dùng thời gian máy ảnh đã ghi (EXIF)', style: text.bodySmall),
                             ],
                           ),
                         ),

@@ -7,6 +7,7 @@ using SixLabors.ImageSharp.Formats.Jpeg;
 using SixLabors.ImageSharp.Formats.Png;
 using SixLabors.ImageSharp.Formats.Webp;
 using SixLabors.ImageSharp.Metadata.Profiles.Exif;
+using SixLabors.ImageSharp.Processing;
 using SnapLingo.Application.Abstractions;
 using SnapLingo.Application.Common;
 using SnapLingo.Domain.Entities;
@@ -112,6 +113,11 @@ public sealed class PhotoService(
         using var image = await Image.LoadAsync(buffer, ct);
 
         var takenAt = ExtractTakenAt(image.Metadata.ExifProfile);
+
+        // Phones store portrait shots as landscape pixels + an EXIF Orientation flag. Stripping
+        // EXIF would drop that flag and leave the photo sideways, so bake the rotation into the
+        // pixels first (this also resets the flag).
+        image.Mutate(x => x.AutoOrient());
 
         // Strip EXIF/GPS/IPTC/XMP by default (spec section 13) — nothing opts back in here.
         image.Metadata.ExifProfile = null;
