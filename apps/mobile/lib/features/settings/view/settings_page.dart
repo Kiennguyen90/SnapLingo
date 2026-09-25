@@ -1,0 +1,203 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+
+import '../../../core/models/user_profile.dart';
+import '../../../core/network/api_exception.dart';
+import '../../../core/settings/settings_cubit.dart';
+import '../../../core/theme/app_colors.dart';
+import '../../../core/widgets/app_card.dart';
+import '../../../core/widgets/status_views.dart';
+import '../../auth/cubit/auth_cubit.dart';
+import '../../auth/view/register_page.dart';
+import 'accessibility_page.dart';
+
+/// "Cài đặt" tab — profile, learning preferences, accessibility, sign out.
+class SettingsPage extends StatelessWidget {
+  const SettingsPage({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final text = Theme.of(context).textTheme;
+    final profile = context.select((AuthCubit c) => c.state.profile);
+    final settings = context.watch<SettingsCubit>().state;
+    final cubit = context.read<SettingsCubit>();
+
+    return Scaffold(
+      appBar: AppBar(centerTitle: false, title: Text('Cài đặt', style: text.headlineSmall)),
+      body: ListView(
+        padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+        children: [
+          AppCard(
+            onTap: profile == null ? () => context.read<AuthCubit>().refreshProfile() : () => _editProfile(context, profile),
+            child: Row(
+              children: [
+                CircleAvatar(
+                  radius: 28,
+                  backgroundColor: AppColors.primarySoft,
+                  child: Text(
+                    (profile?.fullName.characters.firstOrNull ?? '?').toUpperCase(),
+                    style: text.titleLarge?.copyWith(color: AppColors.primary),
+                  ),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(profile?.fullName ?? 'Không tải được hồ sơ', style: text.titleMedium),
+                      Text(profile?.email ?? 'Chạm để thử lại', style: text.bodySmall),
+                    ],
+                  ),
+                ),
+                const Icon(Icons.chevron_right_rounded, color: AppColors.textSecondary),
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
+          AppCard(
+            padding: EdgeInsets.zero,
+            child: Column(
+              children: [
+                ListTile(
+                  leading: const Icon(Icons.school_outlined),
+                  title: const Text('Trình độ tiếng Anh'),
+                  trailing: Text(
+                    profile == null ? '—' : '${profile.cefrLevel} · ${difficultyLabel(profile.cefrLevel)}',
+                    style: text.bodySmall,
+                  ),
+                  onTap: profile == null ? null : () => _editProfile(context, profile),
+                ),
+                const Divider(indent: 56),
+                ListTile(
+                  leading: const Icon(Icons.record_voice_over_outlined),
+                  title: const Text('Tốc độ phát âm'),
+                  trailing: DropdownButton<SpeechRate>(
+                    value: settings.speechRate,
+                    underline: const SizedBox.shrink(),
+                    onChanged: (v) => v == null ? null : cubit.setSpeechRate(v),
+                    items: [for (final r in SpeechRate.values) DropdownMenuItem(value: r, child: Text(r.label))],
+                  ),
+                ),
+                const Divider(indent: 56),
+                SwitchListTile(
+                  secondary: const Icon(Icons.translate_rounded),
+                  title: const Text('Hiển thị bản dịch'),
+                  subtitle: const Text('Hiện nghĩa tiếng Việt bên dưới nội dung tiếng Anh'),
+                  value: settings.showTranslation,
+                  onChanged: cubit.setShowTranslation,
+                ),
+                const Divider(indent: 56),
+                ListTile(
+                  leading: const Icon(Icons.accessibility_new_rounded),
+                  title: const Text('Trợ năng'),
+                  subtitle: const Text('Transcript, tô sáng từ, cỡ chữ'),
+                  trailing: const Icon(Icons.chevron_right_rounded),
+                  onTap: () => Navigator.of(context).push(AccessibilityPage.route()),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
+          AppCard(
+            padding: EdgeInsets.zero,
+            child: ListTile(
+              leading: const Icon(Icons.logout_rounded, color: AppColors.error),
+              title: const Text('Đăng xuất', style: TextStyle(color: AppColors.error)),
+              onTap: () => _confirmLogout(context),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _confirmLogout(BuildContext context) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Đăng xuất?'),
+        content: const Text('Bài học của bạn vẫn được lưu trên máy chủ.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Hủy')),
+          TextButton(onPressed: () => Navigator.pop(context, true), child: const Text('Đăng xuất')),
+        ],
+      ),
+    );
+    if (ok == true && context.mounted) await context.read<AuthCubit>().logout();
+  }
+
+  Future<void> _editProfile(BuildContext context, UserProfile profile) async {
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (_) => BlocProvider.value(
+        value: context.read<AuthCubit>(),
+        child: _ProfileSheet(profile: profile),
+      ),
+    );
+  }
+}
+
+class _ProfileSheet extends StatefulWidget {
+  const _ProfileSheet({required this.profile});
+
+  final UserProfile profile;
+
+  @override
+  State<_ProfileSheet> createState() => _ProfileSheetState();
+}
+
+class _ProfileSheetState extends State<_ProfileSheet> {
+  late final _name = TextEditingController(text: widget.profile.displayName ?? '');
+  late String _cefr = widget.profile.cefrLevel;
+  bool _saving = false;
+
+  @override
+  void dispose() {
+    _name.dispose();
+    super.dispose();
+  }
+
+  Future<void> _save() async {
+    setState(() => _saving = true);
+    try {
+      await context.read<AuthCubit>().updateProfile(displayName: _name.text.trim(), cefrLevel: _cefr);
+      if (mounted) Navigator.of(context).pop();
+    } on ApiException catch (e) {
+      if (mounted) {
+        setState(() => _saving = false);
+        showErrorSnack(context, e.message);
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final text = Theme.of(context).textTheme;
+    return Padding(
+      padding: EdgeInsets.fromLTRB(24, 0, 24, 24 + MediaQuery.viewInsetsOf(context).bottom),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('Hồ sơ học tập', style: text.titleLarge),
+          const SizedBox(height: 16),
+          TextField(
+            controller: _name,
+            textCapitalization: TextCapitalization.words,
+            decoration: const InputDecoration(labelText: 'Tên hiển thị'),
+          ),
+          const SizedBox(height: 18),
+          Text('Trình độ (CEFR)', style: text.titleMedium),
+          const SizedBox(height: 4),
+          Text('Áp dụng cho các bài học tạo mới.', style: text.bodySmall),
+          const SizedBox(height: 10),
+          CefrPicker(value: _cefr, onChanged: (v) => setState(() => _cefr = v)),
+          const SizedBox(height: 24),
+          FilledButton(onPressed: _saving ? null : _save, child: Text(_saving ? 'Đang lưu…' : 'Lưu')),
+        ],
+      ),
+    );
+  }
+}

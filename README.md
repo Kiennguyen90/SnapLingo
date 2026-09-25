@@ -218,6 +218,22 @@ JWT bearer auth, exception handling, Swagger, health check).
 ở trên. `ITextToSpeechService` vẫn trỏ `FakeTextToSpeechService` (Phase 5
 chưa làm).
 
+## App mobile (Flutter)
+
+App Android theo bộ mockup high-fidelity (`SnapLingo_Design/`) nằm ở
+[`apps/mobile`](./apps/mobile) — đủ luồng Chụp ảnh → Chọn cảm xúc → AI tạo bài
+→ Từ vựng → Câu chuyện → Quiz → Ôn tập, gọi thẳng các API ở trên. Chạy API bằng
+profile `http` rồi:
+
+```bash
+cd apps/mobile
+flutter pub get
+flutter run   # emulator Android gọi http://10.0.2.2:5164
+```
+
+Chi tiết (cấu hình `API_BASE_URL`, bảng màn hình ↔ design, giới hạn hiện tại)
+xem [`apps/mobile/README.md`](./apps/mobile/README.md).
+
 ## Tài liệu trong repo
 
 - [`SnapLingo_Project_Specification_AI_Code_Prompting.docx`](./SnapLingo_Project_Specification_AI_Code_Prompting.docx) —
