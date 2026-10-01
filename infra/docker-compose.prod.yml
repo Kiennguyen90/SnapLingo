@@ -1,0 +1,48 @@
+# Production stack: API + PostgreSQL. Put a TLS-terminating reverse proxy (Caddy/nginx/Traefik)
+# in front of the API; only the proxy should be exposed publicly.
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:?set POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB:?set POSTGRES_DB}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  api:
+    image: ${API_IMAGE:?set API_IMAGE}:${API_TAG:-latest}
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "${API_PORT:-8080}:8080"
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ConnectionStrings__Default: Host=postgres;Port=5432;Database=${POSTGRES_DB};Username=${POSTGRES_USER};Password=${POSTGRES_PASSWORD}
+      Database__MigrateOnStartup: "true"
+      Jwt__SigningKey: ${JWT_SIGNING_KEY:?set JWT_SIGNING_KEY}
+      Storage__SigningKey: ${STORAGE_SIGNING_KEY:?set STORAGE_SIGNING_KEY}
+      Storage__PublicBaseUrl: ${STORAGE_PUBLIC_BASE_URL:?set STORAGE_PUBLIC_BASE_URL}
+      OpenAi__ApiKey: ${OPENAI_API_KEY:-}
+      GoogleAuth__AllowedClientIds__0: ${GOOGLE_CLIENT_ID:-}
+    volumes:
+      - media_data:/data/storage
+    healthcheck:
+      # The runtime image has no curl; probe /health with bash's /dev/tcp.
+      test: ["CMD-SHELL", "exec 3<>/dev/tcp/127.0.0.1/8080 && printf 'GET /health HTTP/1.0\r\n\r\n' >&3 && head -n1 <&3 | grep -q 200"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+volumes:
+  postgres_data:
+  media_data:

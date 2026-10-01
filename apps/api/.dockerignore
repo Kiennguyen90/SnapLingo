@@ -1,0 +1,9 @@
+**/bin/
+**/obj/
+**/var/
+**/.vs/
+**/*.user
+**/appsettings.Development.json
+**/Properties/launchSettings.json
+Dockerfile
+.dockerignore
