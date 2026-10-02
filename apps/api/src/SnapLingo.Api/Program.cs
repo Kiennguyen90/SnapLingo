@@ -1,6 +1,7 @@
 using System.Text;
 using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using SnapLingo.Api.CurrentUser;
@@ -75,13 +76,25 @@ builder.Services.AddSwaggerGen(options =>
 
 var app = builder.Build();
 
+if (app.Environment.IsProduction())
+{
+    // Fail fast rather than ship with the well-known development secrets from appsettings.json.
+    if (jwtOptions.SigningKey.StartsWith("dev-", StringComparison.Ordinal))
+        throw new InvalidOperationException("Jwt:SigningKey must be overridden in Production (env var Jwt__SigningKey).");
+    if ((builder.Configuration["Storage:SigningKey"] ?? "").StartsWith("dev-", StringComparison.Ordinal))
+        throw new InvalidOperationException("Storage:SigningKey must be overridden in Production (env var Storage__SigningKey).");
+}
+
 app.UseExceptionHandler();
 
-app.UseSwagger();
-app.UseSwaggerUI(options =>
+if (!app.Environment.IsProduction() || app.Configuration.GetValue<bool>("Swagger:Enabled"))
 {
-    options.SwaggerEndpoint("/swagger/v1/swagger.json", "SnapLingo API v1");
-});
+    app.UseSwagger();
+    app.UseSwaggerUI(options =>
+    {
+        options.SwaggerEndpoint("/swagger/v1/swagger.json", "SnapLingo API v1");
+    });
+}
 
 app.UseAuthentication();
 app.UseAuthorization();
@@ -101,8 +114,18 @@ app.MapMediaEndpoints();
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<SnapLingoDbContext>();
-    var passwordHasher = scope.ServiceProvider.GetRequiredService<Microsoft.AspNetCore.Identity.PasswordHasher<SnapLingo.Domain.Entities.User>>();
-    await DbSeeder.SeedAsync(db, passwordHasher);
+
+    // Opt-in (Database__MigrateOnStartup=true) so containers can bring their own schema up.
+    if (app.Configuration.GetValue<bool>("Database:MigrateOnStartup"))
+        await db.Database.MigrateAsync();
+
+    // The seeded demo account has a publicly documented password: never create it in Production
+    // unless explicitly requested.
+    if (!app.Environment.IsProduction() || app.Configuration.GetValue<bool>("Database:SeedDemoUser"))
+    {
+        var passwordHasher = scope.ServiceProvider.GetRequiredService<Microsoft.AspNetCore.Identity.PasswordHasher<SnapLingo.Domain.Entities.User>>();
+        await DbSeeder.SeedAsync(db, passwordHasher);
+    }
 }
 
 app.Run();

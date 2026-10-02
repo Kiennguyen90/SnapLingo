@@ -32,3 +32,4 @@ appsettings.*.local.json
 *.swp
 .DS_Store
 Thumbs.db
+.env.prod

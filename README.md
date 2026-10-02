@@ -327,3 +327,34 @@ xem [`apps/mobile/README.md`](./apps/mobile/README.md).
 Sau khi có phản hồi thực tế từ 2 giai đoạn trên mới làm phân tích cạnh tranh
 và mô hình kiếm tiền chính thức. Chi tiết đầy đủ xem trong hai tài liệu ở
 trên.
+
+## Môi trường Local vs Production
+
+| | Local (Development) | Production |
+|---|---|---|
+| Chạy API | `dotnet run` (hoặc F5), `ASPNETCORE_ENVIRONMENT=Development` | Docker image `ghcr.io/<owner>/snaplingo-api`, `ASPNETCORE_ENVIRONMENT=Production` |
+| Cấu hình | `appsettings.Development.json` + `.env` / user-secrets | `appsettings.Production.json` + biến môi trường từ `.env.prod` |
+| Compose | `infra/docker-compose.yml` (chỉ PostgreSQL) | `infra/docker-compose.prod.yml` (API + PostgreSQL) |
+| Migration | tự chạy (`Database:MigrateOnStartup=true`) | compose bật `Database__MigrateOnStartup=true` |
+| Swagger / user demo | bật | tắt (bật lại bằng `Swagger__Enabled`, `Database__SeedDemoUser`) |
+| Secrets | key mặc định `dev-*` | bắt buộc ghi đè `Jwt__SigningKey`, `Storage__SigningKey` (API từ chối khởi động nếu còn `dev-*`) |
+| Mobile | `flutter run --dart-define=API_BASE_URL=http://<ip>:5164` | `flutter build apk --dart-define=API_BASE_URL=https://api.<domain>` |
+
+Chạy local bằng Docker toàn bộ stack (build cần `SIXLABORS_LICENSE_KEY`):
+
+```bash
+export SIXLABORS_LICENSE_KEY=...   # ImageSharp 4.x cần key cho build Release
+docker build --secret id=sixlabors_key,env=SIXLABORS_LICENSE_KEY -t snaplingo-api:local -f apps/api/Dockerfile apps/api
+```
+
+Triển khai production:
+
+```bash
+cp .env.prod.example .env.prod      # điền secret thật
+docker compose -f infra/docker-compose.prod.yml --env-file .env.prod pull
+docker compose -f infra/docker-compose.prod.yml --env-file .env.prod up -d
+```
+
+CI/CD (`.github/workflows`): `ci.yml` build + test API, analyze + test mobile, build thử image
+cho mọi PR; `docker.yml` push image lên GHCR khi merge `master` hoặc tag `vX.Y.Z`.
+Cần thêm GitHub secret `SIXLABORS_LICENSE_KEY`.
