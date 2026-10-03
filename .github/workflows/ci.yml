@@ -17,8 +17,6 @@ jobs:
   api:
     name: API (build + test)
     runs-on: ubuntu-latest
-    env:
-      SixLaborsLicenseKey: ${{ secrets.SIXLABORS_LICENSE_KEY }}
     defaults:
       run:
         working-directory: apps/api
@@ -68,7 +66,5 @@ jobs:
           context: apps/api
           file: apps/api/Dockerfile
           push: false
-          secrets: |
-            sixlabors_key=${{ secrets.SIXLABORS_LICENSE_KEY }}
           cache-from: type=gha
           cache-to: type=gha,mode=max

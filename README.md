@@ -365,3 +365,27 @@ Cần thêm GitHub secret `SIXLABORS_LICENSE_KEY`.
 - `infra/docker-compose.https.yml` + `infra/Caddyfile`: Caddy tự lấy chứng chỉ Let's Encrypt cho `DOMAIN` (ví dụ `<ip-gạch-ngang>.sslip.io`).
 - `infra/docker-compose.build.yml`: build image API từ source trên VM khi chưa có image trên GHCR.
 - `infra/backup-db.sh`: `pg_dump` hằng ngày (giữ 7 ngày), cài bằng cron. VM còn có snapshot đĩa hằng ngày của GCP.
+
+### Tự động deploy khi merge vào master
+
+`.github/workflows/docker.yml`: test → build + đẩy image `ghcr.io/<owner>/snaplingo-api:sha-<7 ký tự>` → job `deploy`
+SSH vào VM, chạy `~/snaplingo-deploy.sh` (nguồn: `infra/deploy.sh`), script này cập nhật `infra/`, đổi
+`API_IMAGE`/`API_TAG` trong `.env.prod`, pull, khởi động lại, chờ `healthy` và **tự quay về image cũ** nếu API
+không lên. Migration chạy khi API khởi động và **không** được hoàn tác khi rollback.
+
+Khóa SSH của GitHub bị ràng buộc bằng "forced command" trong `~/.ssh/authorized_keys` của VM nên chỉ chạy được đúng
+script đó (từ chối mọi lệnh khác và mọi image ngoài `ghcr.io/<owner>/`).
+
+Cần thiết lập một lần:
+
+| Nơi | Tên | Giá trị |
+|---|---|---|
+| GitHub → Settings → Secrets and variables → Actions → Secrets | `DEPLOY_HOST` | IP hoặc tên máy của VM |
+| | `DEPLOY_USER` | `snaplingo` |
+| | `DEPLOY_SSH_KEY` | nội dung khóa riêng dành cho GitHub (file `~/.ssh/snaplingo_gh_deploy` trên máy đã tạo khóa) |
+| | `DEPLOY_KNOWN_HOSTS` | dòng host key của VM: `ssh-keyscan -t ed25519 <IP>` |
+| Variables (tùy chọn) | `DEPLOY_URL` | `https://<domain>` để kiểm tra `/health` sau khi deploy |
+| GitHub → Settings → Environments | `production` | tạo environment, không cần reviewer |
+| GitHub → Packages → snaplingo-api → Package settings | Visibility | Public (để VM kéo image không cần đăng nhập) |
+
+Sau khi sửa `infra/deploy.sh`, chép lại lên VM (`scp infra/deploy.sh <vm>:~/snaplingo-deploy.sh`) vì script chạy từ bản đã cài.
