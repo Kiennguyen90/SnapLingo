@@ -79,7 +79,9 @@ public sealed class GroundingVerifier(IClaimJudge judge)
                 : s.NeedsHedge ? SentenceAction.Hedged
                 : SentenceAction.Kept;
 
-            var sentence = action == SentenceAction.Hedged ? Hedge(s.Sentence) : s.Sentence;
+            var sentence = action == SentenceAction.Hedged
+                ? Hedge(s.Sentence, evidence.People.Select(p => p.DisplayName).OfType<string>())
+                : s.Sentence;
             if (action != SentenceAction.Dropped)
             {
                 story.Add(sentence);
@@ -107,34 +109,53 @@ public sealed class GroundingVerifier(IClaimJudge judge)
     /// Deterministic hedge for an inference stated as fact: "The café is quiet." becomes
     /// "It seems that the café is quiet." (and "Có vẻ như ..." in Vietnamese).
     /// </summary>
-    public static GeneratedStorySentence Hedge(GeneratedStorySentence s)
+    public static GeneratedStorySentence Hedge(GeneratedStorySentence s, IEnumerable<string>? keepCapitalized = null)
     {
         if (ClaimRules.IsHedged(s.En))
         {
             return s;
         }
 
-        return s with { En = "It seems that " + LowerFirst(s.En.Trim()), Vi = "Có vẻ như " + LowerFirst(s.Vi.Trim()) };
+        var keep = (keepCapitalized ?? []).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        return s with
+        {
+            En = "It seems that " + LowerFirst(s.En.Trim(), keep),
+            Vi = "Có vẻ như " + LowerFirst(s.Vi.Trim(), keep)
+        };
     }
 
-    private static string LowerFirst(string text)
+    // Words that stay capitalized mid-sentence: "I", names the learner gave, days and months.
+    private static readonly string[] AlwaysCapitalized =
+    [
+        "monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday",
+        "january", "february", "march", "april", "june", "july", "august", "september", "october", "november", "december"
+    ];
+
+    /// <summary>
+    /// Lower-cases the first letter so the sentence can follow the hedge prefix ("It seems that
+    /// it's Saturday night."), unless the first word is "I", an acronym or mixed-case word, a name
+    /// the learner gave, or a day/month.
+    /// </summary>
+    private static string LowerFirst(string text, HashSet<string> keep)
     {
-        if (text.Length == 0 || text.StartsWith("I ", StringComparison.Ordinal) || text.StartsWith("I'", StringComparison.Ordinal))
+        if (text.Length == 0)
         {
             return text;
         }
 
-        // Keep proper nouns: only lower-case a first word that is lower-case elsewhere in English
-        // (a capital after the first letter, as in "Tuan", "McDonald's", stays).
         var firstWord = text.Split(' ', 2)[0];
-        return firstWord.Length > 1 && firstWord.Skip(1).All(c => !char.IsUpper(c)) && IsCommonStart(firstWord)
-            ? char.ToLowerInvariant(text[0]) + text[1..]
-            : text;
-    }
+        var core = firstWord.Trim(',', '.', '!', '?', ';', ':', '"', '\u201C', '\u2018', '\'');
+        if (core.Length == 0
+            || core == "I" || core.StartsWith("I'", StringComparison.Ordinal) || core.StartsWith("I\u2019", StringComparison.Ordinal)
+            || core.Skip(1).Any(char.IsUpper)
+            || keep.Contains(core)
+            || AlwaysCapitalized.Contains(core.ToLowerInvariant()))
+        {
+            return text;
+        }
 
-    private static bool IsCommonStart(string word) =>
-        word.ToLowerInvariant() is "the" or "a" or "an" or "this" or "there" or "it" or "we" or "my" or "today" or "he" or "she" or "they"
-            or "our" or "his" or "her" or "their" or "some" or "everyone" or "people" or "tôi" or "hôm" or "có" or "chúng" or "mọi";
+        return char.ToLowerInvariant(text[0]) + text[1..];
+    }
 
     private static ReportSentence ToReport(VerifiedSentence s, GeneratedStorySentence shown, SentenceAction action) =>
         new(s.Index, shown.En, shown.Vi, s.Label, action,

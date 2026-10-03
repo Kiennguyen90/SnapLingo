@@ -39,6 +39,10 @@ public static class ClaimRules
     private static readonly string[] DayNames =
         ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"];
 
+    private static readonly Regex GenderedPronoun = new(
+        @"(?<!\w)(he|she|him|her|hers|his|himself|herself)(?!\w)",
+        RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
+
     private static readonly Regex SelfAsSubject = new(
         @"\bI(?:\s+am|'m)\s+(?:wearing|holding|standing|sitting|posing|smiling|carrying|walking|looking)\b",
         RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
@@ -129,6 +133,22 @@ public static class ClaimRules
             && SelfAsSubject.IsMatch(text))
         {
             Downgrade("Describes the person in the photo as \"I\", but the learner is not labeled in this photo.");
+        }
+
+        // 3c. Gender: "he"/"she" is only allowed for someone the learner labeled with that gender (or a
+        //     relation that implies it). A photo never tells the gender, so anything else is a guess,
+        //     unsupported even when hedged ("maybe she is visiting").
+        var pronounMatch = GenderedPronoun.Match(text);
+        if (pronounMatch.Success)
+        {
+            var labeled = mode == VerifierMode.ImageOnly
+                ? []
+                : evidence.People.Select(p => (p.Relation, p.Gender)).ToList();
+            if (!PersonPronouns.Allows(pronounMatch.Value, labeled))
+            {
+                label = ClaimLabel.Unsupported;
+                reason = $"Uses \"{pronounMatch.Value}\", but no labeled person has that gender (use \"they\" or \"a person\").";
+            }
         }
 
         // 4. Habits: a claim that something happens regularly needs a detected habit (H), or a

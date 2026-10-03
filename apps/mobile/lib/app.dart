@@ -11,6 +11,7 @@ import 'core/services/lesson_progress_store.dart';
 import 'core/services/lesson_service.dart';
 import 'core/services/people_service.dart';
 import 'core/services/photo_service.dart';
+import 'core/services/share_service.dart';
 import 'core/services/review_service.dart';
 import 'core/services/speech_service.dart';
 import 'core/services/user_service.dart';
@@ -40,6 +41,7 @@ class SnapLingoApp extends StatelessWidget {
         RepositoryProvider(create: (_) => AuthService(api)),
         RepositoryProvider(create: (_) => UserService(api)),
         RepositoryProvider(create: (_) => PhotoService(api)),
+        RepositoryProvider(create: (context) => ShareService(context.read<PhotoService>())),
         RepositoryProvider(create: (_) => LessonService(api)),
         RepositoryProvider(create: (_) => ReviewService(api)),
         RepositoryProvider(create: (_) => PeopleService(api)),

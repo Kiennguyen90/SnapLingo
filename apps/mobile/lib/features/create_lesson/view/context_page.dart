@@ -11,6 +11,7 @@ import '../../../core/widgets/app_card.dart';
 import '../../../core/widgets/step_bar.dart';
 import '../../auth/cubit/auth_cubit.dart';
 import '../../people/view/add_person_sheet.dart';
+import '../../../core/widgets/photo_viewer.dart';
 import '../models/lesson_source.dart';
 import 'emotion_page.dart';
 import 'generating_page.dart';
@@ -120,9 +121,31 @@ class _ContextPageState extends State<ContextPage> {
                     padding: const EdgeInsets.all(10),
                     child: Row(
                       children: [
-                        ClipRRect(
-                          borderRadius: BorderRadius.circular(12),
-                          child: Image.file(widget.source.file, width: 72, height: 72, fit: BoxFit.cover),
+                        Semantics(
+                          button: true,
+                          label: 'Xem ảnh đầy đủ',
+                          child: GestureDetector(
+                            onTap: () => PhotoViewerPage.open(context, file: widget.source.file, title: 'Ảnh vừa chụp'),
+                            child: Stack(
+                              children: [
+                                ClipRRect(
+                                  borderRadius: BorderRadius.circular(12),
+                                  child: Image.file(widget.source.file, width: 72, height: 72, fit: BoxFit.cover),
+                                ),
+                                Positioned(
+                                  right: 4,
+                                  bottom: 4,
+                                  child: DecoratedBox(
+                                    decoration: BoxDecoration(color: Colors.black54, borderRadius: BorderRadius.circular(10)),
+                                    child: const Padding(
+                                      padding: EdgeInsets.all(3),
+                                      child: Icon(Icons.zoom_out_map_rounded, color: Colors.white, size: 14),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
                         ),
                         const SizedBox(width: 14),
                         Expanded(

@@ -15,7 +15,7 @@ public sealed record EvidenceItem(
     string DisplayVi);
 
 /// <summary>A person the learner labeled in the current photo.</summary>
-public sealed record LabeledPerson(string Code, Guid PersonId, string? DisplayName, string Relation);
+public sealed record LabeledPerson(string Code, Guid PersonId, string? DisplayName, string Relation, string? Gender = null);
 
 /// <summary>Everything the generator and verifier know about the moment, in coded form.</summary>
 public sealed record EvidenceBundle(

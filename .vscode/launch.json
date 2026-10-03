@@ -17,6 +17,22 @@
                 "action": "openExternally",
                 "pattern": "\\bNow listening on:\\s+(https?://\\S+)"
             }
+        },
+        {
+            "name": "SnapLingo Mobile (local API)",
+            "type": "dart",
+            "request": "launch",
+            "cwd": "${workspaceFolder}/apps/mobile",
+            "program": "lib/main.dart",
+            "args": ["--dart-define-from-file=config/local.json"]
+        },
+        {
+            "name": "SnapLingo Mobile (prod cloud API)",
+            "type": "dart",
+            "request": "launch",
+            "cwd": "${workspaceFolder}/apps/mobile",
+            "program": "lib/main.dart",
+            "args": ["--dart-define-from-file=config/prod.json"]
         }
     ]
 }

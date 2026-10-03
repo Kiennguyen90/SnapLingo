@@ -27,9 +27,10 @@ class PeopleService {
         .toList();
   }
 
-  Future<Person> create({required String relation, String? displayName}) async {
+  Future<Person> create({required String relation, String? displayName, String? gender}) async {
     final json = await _api.post('/api/v1/people', body: {
       'relation': relation,
+      'gender': ?gender,
       if (displayName != null && displayName.trim().isNotEmpty) 'displayName': displayName.trim(),
     });
     return Person.fromJson(json as Map<String, dynamic>);

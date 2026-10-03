@@ -8,5 +8,5 @@ public sealed class AudioOptions
     public string DefaultVoice { get; set; } = "alloy";
 
     /// <summary>Voice used to narrate the Vietnamese story text (see section 11.1's bilingual audio note).</summary>
-    public string VietnameseVoice { get; set; } = "alloy-vi";
+    public string VietnameseVoice { get; set; } = "alloy";
 }

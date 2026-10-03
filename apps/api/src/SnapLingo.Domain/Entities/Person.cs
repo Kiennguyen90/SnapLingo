@@ -15,6 +15,10 @@ public class Person
     /// <summary>Relation key from a fixed list (self, mother, father, younger_brother, ...).</summary>
     public required string Relation { get; set; }
 
+    /// <summary>"female", "male" or null (not specified). Chosen by the learner, never inferred from
+    /// a photo: it decides which pronouns the story may use for this person (he/she vs they).</summary>
+    public string? Gender { get; set; }
+
     public DateTimeOffset CreatedAt { get; set; }
 
     public ICollection<PhotoPerson> PhotoLabels { get; set; } = new List<PhotoPerson>();

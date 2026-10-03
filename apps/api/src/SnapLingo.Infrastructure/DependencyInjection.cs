@@ -79,6 +79,8 @@ public static class DependencyInjection
             services.AddScoped<IEventExtractor, OpenAiEventExtractor>();
             services.AddScoped<IClaimJudge, OpenAiClaimJudge>();
             services.AddScoped<ITextEmbedder, OpenAiTextEmbedder>();
+            // Real narration. Scoped for the same typed-HttpClient reason as the adapters above.
+            services.AddScoped<ITextToSpeechService, OpenAiTextToSpeechService>();
         }
         else
         {
@@ -88,10 +90,9 @@ public static class DependencyInjection
             services.AddSingleton<IEventExtractor, FakeEventExtractor>();
             services.AddSingleton<IClaimJudge, CitationClaimJudge>();
             services.AddSingleton<ITextEmbedder, HashingTextEmbedder>();
+            // Offline: a silent WAV, so the audio pipeline (storage, cache, signed URLs) still works.
+            services.AddSingleton<ITextToSpeechService, FakeTextToSpeechService>();
         }
-
-        // TTS is still Phase 5 / fake regardless of the OpenAI switch above.
-        services.AddSingleton<ITextToSpeechService, FakeTextToSpeechService>();
 
         // Background music adapter: fake today, same swap-in-a-real-provider-later shape as TTS.
         services.AddSingleton<IBackgroundMusicService, FakeBackgroundMusicService>();

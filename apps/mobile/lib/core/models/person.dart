@@ -26,6 +26,7 @@ final class Person extends Equatable {
     required this.relationVi,
     this.displayName,
     this.photoCount = 0,
+    this.gender,
   });
 
   final String personId;
@@ -33,6 +34,9 @@ final class Person extends Equatable {
   final String relation;
   final String relationVi;
   final int photoCount;
+
+  /// 'female', 'male' or null (not specified): decides he/she vs they in the story.
+  final String? gender;
 
   /// "Tuấn (Em trai)" or just "Mẹ" when there is no name.
   String get label =>
@@ -44,10 +48,11 @@ final class Person extends Equatable {
         relation: json['relation']?.toString() ?? 'other',
         relationVi: json['relationVi']?.toString() ?? '',
         photoCount: (json['photoCount'] as num?)?.toInt() ?? 0,
+        gender: json['gender']?.toString(),
       );
 
   @override
-  List<Object?> get props => [personId, displayName, relation];
+  List<Object?> get props => [personId, displayName, relation, gender];
 }
 
 /// Who is labeled in one photo, and how many visible people are still unlabeled.

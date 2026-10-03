@@ -12,6 +12,7 @@ public class PersonConfiguration : IEntityTypeConfiguration<Person>
         builder.HasKey(p => p.Id);
         builder.Property(p => p.DisplayName).HasMaxLength(100);
         builder.Property(p => p.Relation).IsRequired().HasMaxLength(50);
+        builder.Property(p => p.Gender).HasMaxLength(10);
 
         builder.HasOne<User>()
             .WithMany()

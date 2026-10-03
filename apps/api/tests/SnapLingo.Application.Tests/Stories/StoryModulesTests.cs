@@ -151,7 +151,9 @@ public class ClaimRulesTests
     {
         // Bundle() has PeopleCount = 1 and no labels.
         Assert.Equal(ClaimLabel.Unsupported, Check("I am wearing sunglasses and holding a hat.", ["I1"], Bundle()).Label);
-        Assert.Equal(ClaimLabel.Grounded, Check("She is wearing sunglasses.", ["I1"], Bundle()).Label);
+        // A photo never tells the gender: "she" for an unlabeled person is a guess.
+        Assert.Equal(ClaimLabel.Unsupported, Check("She is wearing sunglasses.", ["I1"], Bundle()).Label);
+        Assert.Equal(ClaimLabel.Grounded, Check("They are wearing sunglasses.", ["I1"], Bundle()).Label);
         Assert.Equal(ClaimLabel.Grounded, Check("I am visiting a garden.", ["I1"], Bundle()).Label);
 
         var selfie = Bundle([new LabeledPerson("P1", Guid.NewGuid(), null, "self")]);
@@ -170,10 +172,22 @@ public class GroundingVerifierTests
     {
         var hedged = GroundingVerifier.Hedge(new GeneratedStorySentence("The café is quiet today.", "Quán hôm nay yên tĩnh.", []));
         Assert.Equal("It seems that the café is quiet today.", hedged.En);
-        Assert.Equal("Có vẻ như Quán hôm nay yên tĩnh.", hedged.Vi);
+        Assert.Equal("Có vẻ như quán hôm nay yên tĩnh.", hedged.Vi);
 
-        var name = GroundingVerifier.Hedge(new GeneratedStorySentence("Tuan likes coffee.", "Tuấn thích cà phê.", []));
+        // Names the learner gave keep their capital letter.
+        var name = GroundingVerifier.Hedge(new GeneratedStorySentence("Tuan likes coffee.", "Tuấn thích cà phê.", []), ["Tuan", "Tuấn"]);
         Assert.Equal("It seems that Tuan likes coffee.", name.En);
+        Assert.Equal("Có vẻ như Tuấn thích cà phê.", name.Vi);
+
+        // Contractions, "Now," and days must not give "It seems that It's ..." / "...that Now,".
+        Assert.Equal("It seems that it's a quiet night.",
+            GroundingVerifier.Hedge(new GeneratedStorySentence("It's a quiet night.", "Đêm yên tĩnh.", [])).En);
+        Assert.Equal("It seems that now, I enjoy the quiet.",
+            GroundingVerifier.Hedge(new GeneratedStorySentence("Now, I enjoy the quiet.", "Giờ tôi thích sự yên tĩnh.", [])).En);
+        Assert.Equal("It seems that Saturday is slow.",
+            GroundingVerifier.Hedge(new GeneratedStorySentence("Saturday is slow.", "Thứ Bảy chậm.", [])).En);
+        Assert.Equal("It seems that I notice a box.",
+            GroundingVerifier.Hedge(new GeneratedStorySentence("I notice a box.", "Tôi thấy cái hộp.", [])).En);
 
         var already = new GeneratedStorySentence("Maybe she is visiting.", "Có lẽ bà đang ghé thăm.", []);
         Assert.Same(already, GroundingVerifier.Hedge(already));
