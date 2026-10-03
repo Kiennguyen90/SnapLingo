@@ -35,7 +35,25 @@ class _AddPersonSheetState extends State<_AddPersonSheet> {
   final _name = TextEditingController();
   late final Future<List<Relation>> _relations = context.read<PeopleService>().relations();
   String? _relation;
+  String? _gender; // 'female' | 'male' | null = not specified
   bool _saving = false;
+
+  /// Relations whose gender is already implied, so the learner is not asked again.
+  static const _genderImplied = {
+    'self',
+    'mother',
+    'father',
+    'older_brother',
+    'younger_brother',
+    'older_sister',
+    'younger_sister',
+    'grandmother_maternal',
+    'grandmother_paternal',
+    'grandfather_maternal',
+    'grandfather_paternal',
+    'aunt',
+    'uncle',
+  };
 
   @override
   void dispose() {
@@ -48,7 +66,11 @@ class _AddPersonSheetState extends State<_AddPersonSheet> {
     if (relation == null) return;
     setState(() => _saving = true);
     try {
-      final person = await context.read<PeopleService>().create(relation: relation, displayName: _name.text);
+      final person = await context.read<PeopleService>().create(
+            relation: relation,
+            displayName: _name.text,
+            gender: _genderImplied.contains(relation) ? null : _gender,
+          );
       if (mounted) Navigator.of(context).pop(person);
     } on ApiException catch (e) {
       if (mounted) {
@@ -109,6 +131,22 @@ class _AddPersonSheetState extends State<_AddPersonSheet> {
                 textCapitalization: TextCapitalization.words,
                 decoration: const InputDecoration(labelText: 'Tên (không bắt buộc)', hintText: 'VD: Tuấn'),
               ),
+              if (_relation != null && !_genderImplied.contains(_relation)) ...[
+                const SizedBox(height: 14),
+                Text('Giới tính (để xưng hô đúng: he / she / they)', style: text.bodySmall),
+                const SizedBox(height: 6),
+                SegmentedButton<String?>(
+                  showSelectedIcon: false,
+                  emptySelectionAllowed: false,
+                  segments: const [
+                    ButtonSegment(value: 'female', label: Text('Nữ')),
+                    ButtonSegment(value: 'male', label: Text('Nam')),
+                    ButtonSegment(value: null, label: Text('Không nêu')),
+                  ],
+                  selected: {_gender},
+                  onSelectionChanged: (v) => setState(() => _gender = v.first),
+                ),
+              ],
               const SizedBox(height: 18),
               FilledButton(
                 onPressed: _relation == null || _saving ? null : _save,

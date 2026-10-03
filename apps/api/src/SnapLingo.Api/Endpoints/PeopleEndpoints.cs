@@ -22,13 +22,13 @@ public static class PeopleEndpoints
 
         group.MapPost("/", async (CreatePersonRequest request, PeopleService people, ICurrentUserService currentUser, CancellationToken ct) =>
             {
-                var person = await people.CreateAsync(currentUser.UserId, request.DisplayName, request.Relation, ct);
+                var person = await people.CreateAsync(currentUser.UserId, request.DisplayName, request.Relation, request.Gender, ct);
                 return Results.Created($"/api/v1/people/{person.PersonId}", ToResponse(person));
             })
             .Produces<PersonResponse>(StatusCodes.Status201Created);
 
         group.MapPatch("/{id:guid}", async (Guid id, UpdatePersonRequest request, PeopleService people, ICurrentUserService currentUser, CancellationToken ct) =>
-                Results.Ok(ToResponse(await people.UpdateAsync(currentUser.UserId, id, request.DisplayName, request.Relation, ct))))
+                Results.Ok(ToResponse(await people.UpdateAsync(currentUser.UserId, id, request.DisplayName, request.Relation, request.Gender, ct))))
             .Produces<PersonResponse>();
 
         // Deletes the person and every label of them.
@@ -42,7 +42,7 @@ public static class PeopleEndpoints
     }
 
     public static PersonResponse ToResponse(PersonView p) =>
-        new(p.PersonId, p.DisplayName, p.Relation, p.RelationVi, p.PhotoCount);
+        new(p.PersonId, p.DisplayName, p.Relation, p.RelationVi, p.PhotoCount, p.Gender);
 
     public static PhotoPeopleResponse ToResponse(PhotoPeopleView v) =>
         new(v.PhotoId, v.People.Select(ToResponse).ToList(), v.PeopleCount, v.UnlabeledCount);

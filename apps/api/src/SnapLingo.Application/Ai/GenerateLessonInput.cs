@@ -17,4 +17,5 @@ public sealed record GenerateLessonInput(
     string? LearningGoal,
     int VocabularyTarget,
     EvidenceBundle Evidence,
-    IReadOnlyList<RejectedSentence> Rejected);
+    IReadOnlyList<RejectedSentence> Rejected,
+    string? LearnerName = null);

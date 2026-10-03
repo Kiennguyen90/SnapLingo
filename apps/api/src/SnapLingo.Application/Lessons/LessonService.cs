@@ -343,7 +343,7 @@ public sealed class LessonService(
 
             var input = new GenerateLessonInput(
                 photoId, photo.ObjectKey, photo.MimeType, profile, cefrLevel, nativeLanguage,
-                learningGoal, vocabularyTarget, evidence, []);
+                learningGoal, vocabularyTarget, evidence, [], user.DisplayName);
 
             // Modules 4a + 4b.
             var result = await pipeline.RunAsync(

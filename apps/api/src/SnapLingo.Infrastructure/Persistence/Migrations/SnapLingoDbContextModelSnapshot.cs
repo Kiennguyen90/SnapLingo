@@ -296,6 +296,10 @@ namespace SnapLingo.Infrastructure.Persistence.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)");
 
+                    b.Property<string>("Gender")
+                        .HasMaxLength(10)
+                        .HasColumnType("character varying(10)");
+
                     b.Property<string>("Relation")
                         .IsRequired()
                         .HasMaxLength(50)

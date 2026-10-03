@@ -1,6 +1,6 @@
 namespace SnapLingo.Contracts.Responses;
 
-public sealed record PersonResponse(Guid PersonId, string? DisplayName, string Relation, string RelationVi, int PhotoCount);
+public sealed record PersonResponse(Guid PersonId, string? DisplayName, string Relation, string RelationVi, int PhotoCount, string? Gender = null);
 
 public sealed record RelationResponse(string Key, string English, string Vietnamese);
 

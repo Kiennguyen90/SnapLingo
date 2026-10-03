@@ -15,8 +15,10 @@ public static class PromptBuilder
     /// patterns, no emotion by default); 2.1 forbids assuming the learner is the pictured person
     /// and inventing dialogue speakers (found in the first real-photo test). Bumping this also makes <c>LessonService</c>'s reuse
     /// lookup treat every lesson from the emotion-driven v1.x prompts as a cache miss.
+    /// 2.2 never lets the model guess a pictured person's gender (they/them unless the learner
+    /// gave pronouns), tells it how Vietnamese addresses each relation, and passes the learner's name.
     /// </summary>
-    public const string PromptVersion = "lesson-v2.1.0";
+    public const string PromptVersion = "lesson-v2.2.0";
 
     public static string Build(GenerateLessonInput input)
     {
@@ -30,7 +32,8 @@ public static class PromptBuilder
         sb.AppendLine("NON-NEGOTIABLE GROUNDING RULES");
         sb.AppendLine("1. Every story sentence must be supported by the EVIDENCE below, and must list the codes it uses in \"evidence\" (e.g. [\"I2\",\"T1\"]).");
         sb.AppendLine("2. Never invent people, places, actions, crowds, conversations or plans that are not in the evidence. If the photo shows one cup of coffee, do not write \"with my friends\".");
-        sb.AppendLine("3. People: only name or give a relation (mom, brother, grandmother, friend...) to people with a P code, using exactly that name/relation. People under U1 must never be named or given a relation; describe only what is visible and hedge (\"maybe she is visiting\").");
+        sb.AppendLine("3. People: only name or give a relation (mom, brother, grandmother, friend...) to people with a P code, using exactly that name/relation and exactly the pronouns given for that P code (she/her, he/him or they/them). People under U1 must never be named, given a relation or given a gender: write \"a person\" / \"someone\" and refer to them with \"they\", never \"he\" or \"she\" (a photo does not tell you someone's gender). Describe only what is visible and hedge.");
+        sb.AppendLine("   Vietnamese text: refer to a labeled person the way a Vietnamese speaker does for that relation (see VIETNAMESE ADDRESS below), never with 'nó' or 'họ' for one person. For U1 people use neutral 'một người' / 'người đó' / 'người ấy', never 'cô ấy' or 'anh ấy'. The learner is always 'tôi'.");
         sb.AppendLine("   The learner (\"I\") is NOT the person in the photo unless a P code says \"I\"/self: the learner may be the one taking the photo. Without that label, describe visible people in the third person (\"a woman in sunglasses\"), never as \"I am wearing...\".");
         sb.AppendLine("4. Habits: only say \"usually/often/every.../on weekdays\" when an H code supports it, and cite that H code. A single past photo is not a habit.");
         sb.AppendLine("5. Time: day and time of day must match T1. Contrasts with the past (\"But today...\") must cite a C code.");
@@ -44,6 +47,10 @@ public static class PromptBuilder
         sb.AppendLine($"- CEFR: {input.CefrLevel} (match vocabulary and sentence length to this level)");
         sb.AppendLine($"- Learning goal: {input.LearningGoal ?? "everyday English"}");
         sb.AppendLine($"- Vocabulary target: {input.VocabularyTarget}");
+        if (!string.IsNullOrWhiteSpace(input.LearnerName))
+        {
+            sb.AppendLine($"- Learner's name: {input.LearnerName.Trim()} (the story is first person; use the name only if a dialogue speaker addresses the learner, and never invent names for anyone else)");
+        }
         sb.AppendLine();
 
         if (p.Emotion is not null)
@@ -66,8 +73,10 @@ public static class PromptBuilder
                 var relation = PersonRelations.Get(pp.Relation);
                 return pp.Relation == "self"
                     ? $"{pp.Code} = I/me"
-                    : $"{pp.Code} = {relation.English}{(string.IsNullOrWhiteSpace(pp.DisplayName) ? string.Empty : $" {pp.DisplayName}")}";
+                    : $"{pp.Code} = {relation.English}{(string.IsNullOrWhiteSpace(pp.DisplayName) ? string.Empty : $" {pp.DisplayName}")} ({PersonPronouns.English(pp.Relation, pp.Gender)})";
             })));
+            sb.AppendLine("VIETNAMESE ADDRESS: " + string.Join("; ", e.People.Where(pp => pp.Relation != "self").Select(pp =>
+                $"{pp.Code} = {PersonRelations.Get(pp.Relation).Vietnamese}{(string.IsNullOrWhiteSpace(pp.DisplayName) ? string.Empty : $" {pp.DisplayName}")}, later mentions: '{PersonPronouns.Vietnamese(pp.Relation, pp.Gender)}'")));
         }
 
         sb.AppendLine();

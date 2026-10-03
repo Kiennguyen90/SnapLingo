@@ -5,7 +5,7 @@ using SnapLingo.Domain.Entities;
 
 namespace SnapLingo.Application.People;
 
-public sealed record PersonView(Guid PersonId, string? DisplayName, string Relation, string RelationVi, int PhotoCount);
+public sealed record PersonView(Guid PersonId, string? DisplayName, string Relation, string RelationVi, int PhotoCount, string? Gender = null);
 
 public sealed record PhotoPeopleView(Guid PhotoId, IReadOnlyList<PersonView> People, int? PeopleCount, int UnlabeledCount);
 
@@ -27,7 +27,7 @@ public sealed class PeopleService(IAppDbContext db, IDateTimeProvider clock)
         return people.Select(p => ToView(p.Person, p.Count)).ToList();
     }
 
-    public async Task<PersonView> CreateAsync(Guid userId, string? displayName, string relation, CancellationToken ct)
+    public async Task<PersonView> CreateAsync(Guid userId, string? displayName, string relation, string? gender, CancellationToken ct)
     {
         await EnsureEnabledAsync(userId, ct);
         var person = new Person
@@ -36,6 +36,7 @@ public sealed class PeopleService(IAppDbContext db, IDateTimeProvider clock)
             UserId = userId,
             DisplayName = Clean(displayName),
             Relation = ValidRelation(relation),
+            Gender = ValidGender(gender),
             CreatedAt = clock.UtcNow
         };
 
@@ -44,7 +45,7 @@ public sealed class PeopleService(IAppDbContext db, IDateTimeProvider clock)
         return ToView(person, 0);
     }
 
-    public async Task<PersonView> UpdateAsync(Guid userId, Guid personId, string? displayName, string? relation, CancellationToken ct)
+    public async Task<PersonView> UpdateAsync(Guid userId, Guid personId, string? displayName, string? relation, string? gender, CancellationToken ct)
     {
         var person = await Find(userId, personId, ct);
         if (displayName is not null)
@@ -55,6 +56,12 @@ public sealed class PeopleService(IAppDbContext db, IDateTimeProvider clock)
         if (relation is not null)
         {
             person.Relation = ValidRelation(relation);
+        }
+
+        if (gender is not null)
+        {
+            // An empty string clears the gender (back to "not specified").
+            person.Gender = ValidGender(gender);
         }
 
         await db.SaveChangesAsync(ct);
@@ -149,6 +156,14 @@ public sealed class PeopleService(IAppDbContext db, IDateTimeProvider clock)
             : throw new AppValidationException($"Unknown relation '{relation}'.");
     }
 
+    private static string? ValidGender(string? gender)
+    {
+        var key = gender?.Trim().ToLowerInvariant();
+        return string.IsNullOrEmpty(key) ? null
+            : key is "female" or "male" ? key
+            : throw new AppValidationException($"Unknown gender '{gender}'. Use 'female', 'male' or leave it empty.");
+    }
+
     private static string? Clean(string? name)
     {
         var trimmed = name?.Trim();
@@ -156,5 +171,5 @@ public sealed class PeopleService(IAppDbContext db, IDateTimeProvider clock)
     }
 
     private static PersonView ToView(Person p, int photoCount) =>
-        new(p.Id, p.DisplayName, p.Relation, PersonRelations.Get(p.Relation).Vietnamese, photoCount);
+        new(p.Id, p.DisplayName, p.Relation, PersonRelations.Get(p.Relation).Vietnamese, photoCount, p.Gender);
 }

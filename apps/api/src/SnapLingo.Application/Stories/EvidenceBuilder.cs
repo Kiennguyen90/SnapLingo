@@ -1,3 +1,4 @@
+using System.Text.RegularExpressions;
 using SnapLingo.Application.People;
 using SnapLingo.Domain.Entities;
 using SnapLingo.Domain.Enums;
@@ -75,22 +76,39 @@ public static class EvidenceBuilder
             var person = labeledPeople[i];
             var relation = PersonRelations.Get(person.Relation);
             var code = $"P{i + 1}";
-            people.Add(new LabeledPerson(code, person.Id, person.DisplayName, person.Relation));
+            people.Add(new LabeledPerson(code, person.Id, person.DisplayName, person.Relation, person.Gender));
 
             var who = person.Relation == "self"
                 ? "The learner (\"I\") is in this photo."
-                : $"{Name(person.DisplayName, relation.English)} is in this photo; the learner calls this person {relation.English}.";
+                : $"{Name(person.DisplayName, relation.English)} is in this photo; the learner calls this person {relation.English}. "
+                  + $"Pronouns for this person: {PersonPronouns.English(person.Relation, person.Gender)} "
+                  + "(chosen by the learner, never guessed from the photo).";
             var whoVi = person.Relation == "self"
                 ? "Nhãn người: bạn"
                 : $"Nhãn người: {(string.IsNullOrWhiteSpace(person.DisplayName) ? relation.Vietnamese : $"{person.DisplayName} ({relation.Vietnamese})")}";
             items.Add(new EvidenceItem(code, EvidenceSource.Person, $"{who} (labeled by the learner)", whoVi));
         }
 
-        var unlabeled = Math.Max(0, current.PeopleCount - labeledPeople.Count);
+        // The learner's own note can say the pictured person is them ("tui nè", "it's me", "selfie").
+        // With exactly one person visible and no self label, believe the note: otherwise the story
+        // would have to call the learner "a person" in their own photo.
+        if (current.PeopleCount == 1
+            && people.Count == 0
+            && !string.IsNullOrWhiteSpace(photo.Note)
+            && SelfNote.IsMatch(photo.Note))
+        {
+            var selfCode = $"P{people.Count + 1}";
+            people.Add(new LabeledPerson(selfCode, Guid.Empty, null, "self"));
+            items.Add(new EvidenceItem(selfCode, EvidenceSource.Person,
+                "The learner (\"I\") is the person in this photo (the learner's own note says so).",
+                "Ghi chú của bạn cho biết người trong ảnh là bạn"));
+        }
+
+        var unlabeled = Math.Max(0, current.PeopleCount - people.Count);
         if (unlabeled > 0)
         {
             items.Add(new EvidenceItem("U1", EvidenceSource.Person,
-                $"{unlabeled} visible {(unlabeled == 1 ? "person is" : "people are")} NOT labeled. Never name them or state their relation to the learner; if mentioned, describe only what is visible and hedge (e.g. \"maybe she is visiting\").",
+                $"{unlabeled} visible {(unlabeled == 1 ? "person is" : "people are")} NOT labeled. Never name them, state their relation to the learner or guess their gender: call them \"a person\" / \"someone\" and use \"they\", never \"he\" or \"she\". Describe only what is visible and hedge.",
                 $"{unlabeled} người chưa được gắn nhãn"));
         }
 
@@ -141,6 +159,10 @@ public static class EvidenceBuilder
         return new EvidenceBundle(items, moment, current.Scene, objects, current.PeopleCount, people, unlabeled,
             memoryMode == MemoryMode.Personal ? temporal : TemporalContext.Empty, memoryIds);
     }
+
+    private static readonly Regex SelfNote = new(
+        @"(?<!\w)((tui|tôi|mình|tớ|tao)\s*(nè|đây|nha)|(it'?s|this is)\s+me|selfie|self[- ]?portrait|me\s*[.!]?$|chính\s+tôi|(ảnh|hình)\s+(của\s+)?(tôi|mình|tui))(?!\w)",
+        RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
 
     private static string Name(string? displayName, string relationEnglish) =>
         string.IsNullOrWhiteSpace(displayName) ? relationEnglish.Replace("my ", "The learner's ") : displayName.Trim();

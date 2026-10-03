@@ -29,6 +29,10 @@ public sealed class OpenAiOptions
     /// cheap (proposal risk table: "use a small model for the verification step"); temperature 0.</summary>
     public string VerifierModel { get; set; } = "gpt-4o-mini";
 
+    /// <summary>Text-to-speech model for the story/dialogue audio. gpt-4o-mini-tts speaks Vietnamese
+    /// and accepts delivery instructions (the lesson profile's TTS style hint).</summary>
+    public string SpeechModel { get; set; } = "gpt-4o-mini-tts";
+
     /// <summary>Embedding model for memory retrieval (Module 2).</summary>
     public string EmbeddingModel { get; set; } = "text-embedding-3-small";
 

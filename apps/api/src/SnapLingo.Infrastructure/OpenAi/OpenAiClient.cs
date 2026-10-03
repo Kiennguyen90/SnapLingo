@@ -58,13 +58,27 @@ public sealed class OpenAiClient(HttpClient httpClient, IOptions<OpenAiOptions> 
             .EnumerateArray().Select(v => v.GetSingle()).ToArray();
     }
 
-    private async Task<string> SendWithRetryAsync(string path, object requestBody, CancellationToken ct)
+    /// <summary>
+    /// Text to speech (POST audio/speech): returns the encoded audio bytes (mp3). <paramref name="instructions"/>
+    /// steers delivery (pace, tone) and is only understood by the gpt-4o-mini-tts family.
+    /// </summary>
+    public Task<byte[]> CreateSpeechAsync(string input, string voice, string? instructions, CancellationToken ct)
     {
+        object body = string.IsNullOrWhiteSpace(instructions)
+            ? new { model = _options.SpeechModel, input, voice, response_format = "mp3" }
+            : new { model = _options.SpeechModel, input, voice, response_format = "mp3", instructions };
+        return SendRawWithRetryAsync("audio/speech", body, ct);
+    }
 
+    private async Task<string> SendWithRetryAsync(string path, object requestBody, CancellationToken ct) =>
+        System.Text.Encoding.UTF8.GetString(await SendRawWithRetryAsync(path, requestBody, ct));
+
+    private async Task<byte[]> SendRawWithRetryAsync(string path, object requestBody, CancellationToken ct)
+    {
         for (var attempt = 1; attempt <= _options.MaxAttempts; attempt++)
         {
             HttpResponseMessage response;
-            string raw;
+            byte[] raw;
 
             try
             {
@@ -75,7 +89,7 @@ public sealed class OpenAiClient(HttpClient httpClient, IOptions<OpenAiOptions> 
                 request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", _options.ApiKey);
 
                 response = await httpClient.SendAsync(request, ct);
-                raw = await response.Content.ReadAsStringAsync(ct);
+                raw = await response.Content.ReadAsByteArrayAsync(ct);
             }
             catch (TaskCanceledException) when (!ct.IsCancellationRequested && attempt < _options.MaxAttempts)
             {
@@ -97,16 +111,17 @@ public sealed class OpenAiClient(HttpClient httpClient, IOptions<OpenAiOptions> 
                 return raw;
             }
 
+            var errorBody = System.Text.Encoding.UTF8.GetString(raw);
             var isTransient = response.StatusCode == HttpStatusCode.TooManyRequests || (int)response.StatusCode >= 500;
             if (isTransient && attempt < _options.MaxAttempts)
             {
                 logger.LogWarning("OpenAI returned {Status} (attempt {Attempt}/{Max}), retrying: {Body}",
-                    (int)response.StatusCode, attempt, _options.MaxAttempts, raw);
+                    (int)response.StatusCode, attempt, _options.MaxAttempts, errorBody);
                 await DelayBeforeRetry(attempt, ct);
                 continue;
             }
 
-            throw new OpenAiApiException($"OpenAI request failed with {(int)response.StatusCode}: {raw}");
+            throw new OpenAiApiException($"OpenAI request failed with {(int)response.StatusCode}: {errorBody}");
         }
 
         throw new OpenAiApiException($"OpenAI request failed after {_options.MaxAttempts} attempts.");
