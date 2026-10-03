@@ -20,6 +20,7 @@ import '../../create_lesson/models/lesson_source.dart';
 import '../../create_lesson/view/emotion_page.dart';
 import '../../create_lesson/view/generating_page.dart';
 import '../widgets/grounding_widgets.dart';
+import '../widgets/share_lesson_button.dart';
 import '../cubit/lesson_cubit.dart';
 import '../lesson_navigation.dart';
 
@@ -97,6 +98,7 @@ class _OverviewView extends StatelessWidget {
             centerTitle: false,
             title: const BrandWordmark(),
             actions: [
+              if (lesson != null) ShareLessonButton(lesson: lesson),
               if (lesson != null)
                 PopupMenuButton<_MenuAction>(
                   tooltip: 'Tùy chọn',
@@ -176,7 +178,7 @@ class _OverviewBody extends StatelessWidget {
               if (showVi && lesson.titleVi.isNotEmpty)
                 Text(lesson.titleVi, style: text.titleMedium?.copyWith(color: AppColors.textSecondary, fontWeight: FontWeight.w400)),
               const SizedBox(height: 14),
-              RemotePhoto(photoId: lesson.photoId, height: 220, width: double.infinity, radius: 20),
+              RemotePhoto(photoId: lesson.photoId, height: 220, width: double.infinity, radius: 20, viewable: true),
               if (lesson.grounding case final grounding?) ...[
                 const SizedBox(height: 10),
                 Align(alignment: Alignment.centerLeft, child: GroundingBadge(grounding: grounding)),

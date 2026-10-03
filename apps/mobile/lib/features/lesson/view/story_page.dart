@@ -22,6 +22,7 @@ import '../../people/view/add_person_sheet.dart';
 import '../widgets/audio_player_card.dart';
 import '../widgets/feedback_card.dart';
 import '../widgets/grounding_widgets.dart';
+import '../widgets/share_lesson_button.dart';
 
 /// Screen 08 — mini-story with narration (English or Vietnamese), highlighted
 /// vocabulary, optional Vietnamese transcript, and the dialogue.
@@ -211,6 +212,7 @@ class _StoryPageState extends State<StoryPage> {
       appBar: AppBar(
         title: const Text('Câu chuyện'),
         actions: [
+          ShareLessonButton(lesson: _lesson),
           Padding(
             padding: const EdgeInsets.only(right: 20),
             child: Center(child: Text('2/3', semanticsLabel: 'Phần 2 trên 3', style: text.bodyMedium?.copyWith(color: AppColors.textSecondary))),
@@ -225,7 +227,7 @@ class _StoryPageState extends State<StoryPage> {
               child: ListView(
                 padding: const EdgeInsets.fromLTRB(20, 4, 20, 16),
                 children: [
-                  RemotePhoto(photoId: _lesson.photoId, height: 180, width: double.infinity, radius: 20),
+                  RemotePhoto(photoId: _lesson.photoId, height: 180, width: double.infinity, radius: 20, viewable: true),
                   const SizedBox(height: 14),
                   if (story != null) ...[
                     Semantics(header: true, child: Text(story.titleEn, style: text.titleLarge)),
