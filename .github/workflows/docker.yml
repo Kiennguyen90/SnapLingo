@@ -1,6 +1,7 @@
-name: Publish API image
+name: Publish and deploy API
 
-# Pushes ghcr.io/<owner>/snaplingo-api on every merge to master and on version tags (v1.2.3).
+# On every merge to master: test, push ghcr.io/<owner>/snaplingo-api, then deploy that exact image to
+# the production VM over SSH. Version tags (v1.2.3) only publish an image.
 on:
   push:
     branches: [master]
@@ -45,9 +46,55 @@ jobs:
           context: apps/api
           file: apps/api/Dockerfile
           push: true
-          secrets: |
-            sixlabors_key=${{ secrets.SIXLABORS_LICENSE_KEY }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+  deploy:
+    name: Deploy to production
+    needs: publish
+    if: github.ref == 'refs/heads/master'
+    runs-on: ubuntu-latest
+    environment: production
+    concurrency:
+      group: deploy-production
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Deploy over SSH
+        env:
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          DEPLOY_KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
+        run: |
+          set -euo pipefail
+          for v in DEPLOY_HOST DEPLOY_USER DEPLOY_SSH_KEY DEPLOY_KNOWN_HOSTS; do
+            [ -n "${!v}" ] || { echo "::error::secret $v is not set"; exit 1; }
+          done
+
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$DEPLOY_SSH_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          printf '%s\n' "$DEPLOY_KNOWN_HOSTS" > ~/.ssh/known_hosts
+
+          # Same tag the publish job pushed (docker/metadata-action: sha, 7 characters), lower-cased for GHCR.
+          OWNER="${GITHUB_REPOSITORY_OWNER,,}"
+          IMAGE_REF="ghcr.io/${OWNER}/snaplingo-api:sha-${GITHUB_SHA::7}"
+
+          # The VM's forced command takes the image reference and reads the new infra/ files from stdin.
+          tar czf - infra | ssh -i ~/.ssh/deploy_key -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes \
+            "${DEPLOY_USER}@${DEPLOY_HOST}" "$IMAGE_REF"
+
+      - name: Check the public endpoint
+        env:
+          DEPLOY_URL: ${{ vars.DEPLOY_URL }}
+        run: |
+          [ -n "$DEPLOY_URL" ] || { echo "DEPLOY_URL variable not set; skipping"; exit 0; }
+          for i in 1 2 3 4 5 6; do
+            curl -fsS --max-time 10 "$DEPLOY_URL/health" && exit 0
+            sleep 5
+          done
+          echo "::error::$DEPLOY_URL/health did not answer"; exit 1
