@@ -1,0 +1,9 @@
+# TLS-terminating reverse proxy for the API. DOMAIN comes from the environment, e.g.
+# 35-185-178-211.sslip.io (a free wildcard DNS name that resolves to that IP) or your own domain.
+{$DOMAIN} {
+	encode gzip
+	request_body {
+		max_size 15MB
+	}
+	reverse_proxy api:8080
+}

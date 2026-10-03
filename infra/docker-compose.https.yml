@@ -1,0 +1,25 @@
+# Overlay for docker-compose.prod.yml: adds Caddy (automatic Let's Encrypt HTTPS on 80/443)
+# in front of the API and stops publishing the API port on the host.
+#   docker compose -f infra/docker-compose.prod.yml -f infra/docker-compose.https.yml --env-file .env.prod up -d
+services:
+  api:
+    ports: !reset []
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    depends_on:
+      api:
+        condition: service_healthy
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      DOMAIN: ${DOMAIN:?set DOMAIN}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+
+volumes:
+  caddy_data:
+  caddy_config:

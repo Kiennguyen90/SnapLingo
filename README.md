@@ -338,7 +338,7 @@ trên.
 | Migration | tự chạy (`Database:MigrateOnStartup=true`) | compose bật `Database__MigrateOnStartup=true` |
 | Swagger / user demo | bật | tắt (bật lại bằng `Swagger__Enabled`, `Database__SeedDemoUser`) |
 | Secrets | key mặc định `dev-*` | bắt buộc ghi đè `Jwt__SigningKey`, `Storage__SigningKey` (API từ chối khởi động nếu còn `dev-*`) |
-| Mobile | `flutter run --dart-define=API_BASE_URL=http://<ip>:5164` | `flutter build apk --dart-define=API_BASE_URL=https://api.<domain>` |
+| Mobile | `flutter run --dart-define-from-file=config/local.json` | `flutter build apk --release --dart-define-from-file=config/prod.json` |
 
 Chạy local bằng Docker toàn bộ stack (build cần `SIXLABORS_LICENSE_KEY`):
 
@@ -358,3 +358,10 @@ docker compose -f infra/docker-compose.prod.yml --env-file .env.prod up -d
 CI/CD (`.github/workflows`): `ci.yml` build + test API, analyze + test mobile, build thử image
 cho mọi PR; `docker.yml` push image lên GHCR khi merge `master` hoặc tag `vX.Y.Z`.
 Cần thêm GitHub secret `SIXLABORS_LICENSE_KEY`.
+
+
+### Sao lưu và HTTPS trên VM
+
+- `infra/docker-compose.https.yml` + `infra/Caddyfile`: Caddy tự lấy chứng chỉ Let's Encrypt cho `DOMAIN` (ví dụ `<ip-gạch-ngang>.sslip.io`).
+- `infra/docker-compose.build.yml`: build image API từ source trên VM khi chưa có image trên GHCR.
+- `infra/backup-db.sh`: `pg_dump` hằng ngày (giữ 7 ngày), cài bằng cron. VM còn có snapshot đĩa hằng ngày của GCP.

@@ -95,3 +95,21 @@ lib/
 - **Đăng nhập Google** chưa có trên app (cần OAuth client ID Android từ Google
   Cloud Console); API đã sẵn sàng ở `POST /auth/google`.
 - Chỉ có giao diện sáng (mockup chỉ có light mode).
+
+
+## Môi trường Local và Production
+
+`config/local.json` và `config/prod.json` giữ `API_BASE_URL` cho từng môi trường:
+
+```bash
+# Local: API chạy trên máy (dotnet run), emulator Android tới host qua 10.0.2.2
+flutter run --dart-define-from-file=config/local.json
+
+# Production: API trên Google Cloud (HTTPS)
+flutter run --dart-define-from-file=config/prod.json
+flutter build apk --release --dart-define-from-file=config/prod.json
+```
+
+Máy thật (không phải emulator) dùng local thì đổi `API_BASE_URL` thành IP LAN của máy chạy API.
+Trong VS Code có sẵn hai cấu hình "SnapLingo Mobile (local API)" và "(prod cloud API)".
+Khi đổi domain production, sửa `config/prod.json`.

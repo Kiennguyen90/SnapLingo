@@ -1,0 +1,7 @@
+# Overlay: build the API image from source instead of pulling it from a registry
+# (e.g. on a VM before the CI has published ghcr.io/<owner>/snaplingo-api).
+services:
+  api:
+    build:
+      context: ../apps/api
+      dockerfile: Dockerfile
