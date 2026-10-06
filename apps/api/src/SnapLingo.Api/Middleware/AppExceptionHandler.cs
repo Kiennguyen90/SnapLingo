@@ -19,6 +19,7 @@ public sealed class AppExceptionHandler(ILogger<AppExceptionHandler> logger) : I
             AppValidationException => (StatusCodes.Status400BadRequest, exception.Message),
             NotFoundException => (StatusCodes.Status404NotFound, exception.Message),
             ConflictException => (StatusCodes.Status409Conflict, exception.Message),
+            LimitExceededException => (StatusCodes.Status403Forbidden, exception.Message),
             AuthenticationException => (StatusCodes.Status401Unauthorized, exception.Message),
             _ => (StatusCodes.Status500InternalServerError, "An unexpected error occurred.")
         };

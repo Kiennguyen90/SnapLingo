@@ -26,7 +26,8 @@ public static class StoryTestKit
         IEventExtractor? extractor = null,
         IClaimJudge? judge = null,
         StoryPipelineOptions? pipelineOptions = null,
-        bool emotionSelection = false)
+        bool emotionSelection = false,
+        int maxLessonsPerUser = 0)
     {
         var options = Options.Create(pipelineOptions ?? new StoryPipelineOptions());
         var memory = new MemoryService(db, extractor ?? new FakeEventExtractor(), new HashingTextEmbedder(),
@@ -34,7 +35,8 @@ public static class StoryTestKit
         var pipeline = new StoryPipeline(generator ?? new FakeLessonGenerator(), new GroundingVerifier(judge ?? new CitationClaimJudge()));
 
         return new LessonService(db, new EmotionPolicy(), memory, pipeline, new InMemoryObjectStorage(),
-            new FixedDateTimeProvider(Now), options, Options.Create(new FeatureOptions { EmotionSelection = emotionSelection }));
+            new FixedDateTimeProvider(Now), options, Options.Create(new FeatureOptions { EmotionSelection = emotionSelection }),
+            Options.Create(new LessonLimitOptions { MaxLessonsPerUser = maxLessonsPerUser }));
     }
 
     public static async Task<Guid> SeedUserAsync(SnapLingoDbContext db, bool personLabeling = false)
