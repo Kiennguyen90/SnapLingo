@@ -38,7 +38,8 @@ public static class LessonsEndpoints
 
             return Results.Created($"/api/v1/lessons/{lesson.Id}", ToResponse(detail));
         })
-        .Produces<LessonResponse>(StatusCodes.Status201Created);
+        .Produces<LessonResponse>(StatusCodes.Status201Created)
+        .Produces(StatusCodes.Status403Forbidden);
 
         group.MapGet("/{id:guid}", async (
             Guid id,
@@ -92,7 +93,8 @@ public static class LessonsEndpoints
 
             return Results.Created($"/api/v1/lessons/{lesson.Id}", ToResponse(detail));
         })
-        .Produces<LessonResponse>(StatusCodes.Status201Created);
+        .Produces<LessonResponse>(StatusCodes.Status201Created)
+        .Produces(StatusCodes.Status403Forbidden);
 
         group.MapPost("/{id:guid}/audio", async (
             Guid id,

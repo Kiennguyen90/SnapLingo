@@ -9,5 +9,8 @@ public class NotFoundException(string message) : Exception(message);
 /// <summary>The request conflicts with existing state, e.g. an email that is already registered (maps to HTTP 409).</summary>
 public class ConflictException(string message) : Exception(message);
 
+/// <summary>The caller is authenticated but has used up an allowance, e.g. the maximum number of lessons (maps to HTTP 403).</summary>
+public class LimitExceededException(string message) : Exception(message);
+
 /// <summary>Credentials are missing or invalid (maps to HTTP 401).</summary>
 public class AuthenticationException(string message) : Exception(message);

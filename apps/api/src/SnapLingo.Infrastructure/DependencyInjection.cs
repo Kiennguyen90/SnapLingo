@@ -6,6 +6,7 @@ using SnapLingo.Application.Abstractions;
 using SnapLingo.Application.Ai;
 using SnapLingo.Application.Audio;
 using SnapLingo.Application.Auth;
+using SnapLingo.Application.Lessons;
 using SnapLingo.Application.Media;
 using SnapLingo.Infrastructure.Ai;
 using SnapLingo.Infrastructure.Audio;
@@ -48,6 +49,7 @@ public static class DependencyInjection
         services.Configure<GoogleAuthOptions>(configuration.GetSection(GoogleAuthOptions.SectionName));
         services.Configure<StoryPipelineOptions>(configuration.GetSection(StoryPipelineOptions.SectionName));
         services.Configure<FeatureOptions>(configuration.GetSection(FeatureOptions.SectionName));
+        services.Configure<LessonLimitOptions>(configuration.GetSection(LessonLimitOptions.SectionName));
 
         services.AddSingleton<SignedUrlSigner>();
         services.AddSingleton<IObjectStorage, LocalObjectStorage>();

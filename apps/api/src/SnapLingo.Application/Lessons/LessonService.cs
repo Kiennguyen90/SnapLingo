@@ -29,7 +29,8 @@ public sealed class LessonService(
     IObjectStorage storage,
     IDateTimeProvider clock,
     IOptions<StoryPipelineOptions> pipelineOptions,
-    IOptions<FeatureOptions> featureOptions)
+    IOptions<FeatureOptions> featureOptions,
+    IOptions<LessonLimitOptions> limitOptions)
 {
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web)
     {
@@ -38,6 +39,7 @@ public sealed class LessonService(
 
     private readonly StoryPipelineOptions _pipeline = pipelineOptions.Value;
     private readonly FeatureOptions _features = featureOptions.Value;
+    private readonly LessonLimitOptions _limits = limitOptions.Value;
 
     public async Task<Lesson> CreateAsync(CreateLessonCommand command, CancellationToken ct)
     {
@@ -62,6 +64,8 @@ public sealed class LessonService(
             return reusable;
         }
 
+        await EnsureWithinLessonLimitAsync(command.UserId, ct);
+
         return await GenerateInternalAsync(
             command.UserId, command.PhotoId, emotion, command.CefrLevel, command.NativeLanguage,
             command.LearningGoal, command.VocabularyTarget, version: 1, ct);
@@ -72,6 +76,8 @@ public sealed class LessonService(
         var original = await db.Lessons
             .FirstOrDefaultAsync(l => l.Id == command.LessonId && l.UserId == command.UserId, ct)
             ?? throw new NotFoundException("Lesson not found.");
+
+        await EnsureWithinLessonLimitAsync(command.UserId, ct);
 
         var nextVersion = await db.Lessons
             .Where(l => l.UserId == command.UserId && l.PhotoId == original.PhotoId)
@@ -87,6 +93,27 @@ public sealed class LessonService(
             command.VocabularyTarget ?? 6,
             version: nextVersion + 1,
             ct);
+    }
+
+    /// <summary>
+    /// A learner may hold at most <see cref="LessonLimitOptions.MaxLessonsPerUser"/> lessons (every
+    /// pipeline run costs model calls). Failed lessons are not counted, and a retry that is answered
+    /// with an existing lesson never reaches this check.
+    /// </summary>
+    private async Task EnsureWithinLessonLimitAsync(Guid userId, CancellationToken ct)
+    {
+        var max = _limits.MaxLessonsPerUser;
+        if (max <= 0)
+        {
+            return;
+        }
+
+        var current = await db.Lessons.CountAsync(l => l.UserId == userId && l.Status != LessonStatus.Failed, ct);
+        if (current >= max)
+        {
+            throw new LimitExceededException(
+                $"Bạn đã đạt giới hạn {max} bài học. Hãy xóa một bài cũ để tạo bài mới.");
+        }
     }
 
     public async Task<LessonDetail?> GetDetailAsync(Guid userId, Guid lessonId, CancellationToken ct)
