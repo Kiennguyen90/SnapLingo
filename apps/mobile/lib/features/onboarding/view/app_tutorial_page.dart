@@ -27,24 +27,32 @@ class _AppTutorialPageState extends State<AppTutorialPage> {
 
   static const _steps = <_TutorialStep>[
     _TutorialStep(
+      image: 'assets/tutorial/01_capture.png',
+      aspectRatio: 900 / 631,
       icon: Icons.photo_camera_rounded,
       title: 'Chụp ảnh tạo bài học',
       body: 'Ở Trang chủ, nhấn "Học từ ảnh mới" – chụp hoặc chọn một tấm ảnh quen thuộc, AI sẽ biến khoảnh khắc đó '
           'thành bài học tiếng Anh riêng cho bạn: từ vựng, câu chuyện, hội thoại và quiz.',
     ),
     _TutorialStep(
+      image: 'assets/tutorial/02_label.png',
+      aspectRatio: 900 / 731,
       icon: Icons.people_outline_rounded,
       title: 'Gắn nhãn người thân',
       body: 'Vào Cài đặt → "Gắn nhãn người thân" để bật tính năng này, rồi cho AI biết ai có trong ảnh (VD: Mẹ, '
           'Em Tuấn). Câu chuyện sau đó sẽ gọi đúng tên người thân của bạn thay vì những cái tên chung.',
     ),
     _TutorialStep(
+      image: 'assets/tutorial/03_regenerate.png',
+      aspectRatio: 900 / 454,
       icon: Icons.autorenew_rounded,
       title: 'Viết lại nội dung bài học',
       body: 'Chưa hài lòng với câu chuyện? Mở bài học, nhấn vào biểu tượng ⋮ ở góc trên bên phải và chọn '
           '"Viết lại câu chuyện" để AI tạo một phiên bản mới từ cùng tấm ảnh.',
     ),
     _TutorialStep(
+      image: 'assets/tutorial/04_share.png',
+      aspectRatio: 900 / 441,
       icon: Icons.ios_share_rounded,
       title: 'Chia sẻ ảnh và câu chuyện',
       body: 'Trong màn hình bài học, nhấn biểu tượng chia sẻ cạnh ⋮ để gửi ảnh cùng câu chuyện tiếng Anh cho '
@@ -123,8 +131,19 @@ class _AppTutorialPageState extends State<AppTutorialPage> {
 }
 
 class _TutorialStep {
-  const _TutorialStep({required this.icon, required this.title, required this.body});
+  const _TutorialStep({
+    required this.image,
+    required this.aspectRatio,
+    required this.icon,
+    required this.title,
+    required this.body,
+  });
 
+  /// Real screenshot from the app (cropped to drop any personal data), not a mockup.
+  final String image;
+
+  /// The crop's own width/height, so the frame below shows it whole — never recropped.
+  final double aspectRatio;
   final IconData icon;
   final String title;
   final String body;
@@ -142,16 +161,52 @@ class _StepView extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 28),
       child: Column(
         children: [
-          const SizedBox(height: 16),
+          const SizedBox(height: 22),
+          // Fixed height, width driven by the image's own aspect ratio: the whole
+          // screenshot always shows, never re-cropped by the frame. The badge is inside
+          // the same AspectRatio box so it anchors to the image's own corner, not the
+          // row's full (wider) width.
           ExcludeSemantics(
-            child: Container(
-              width: 140,
-              height: 140,
-              decoration: const BoxDecoration(color: AppColors.primarySoft, shape: BoxShape.circle),
-              child: Icon(step.icon, size: 68, color: AppColors.primary),
+            child: SizedBox(
+              height: 210,
+              child: Center(
+                child: AspectRatio(
+                  aspectRatio: step.aspectRatio,
+                  child: Stack(
+                    clipBehavior: Clip.none,
+                    children: [
+                      Container(
+                        clipBehavior: Clip.antiAlias,
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(color: AppColors.border.withValues(alpha: 0.6)),
+                          boxShadow: [
+                            BoxShadow(color: AppColors.primary.withValues(alpha: 0.12), blurRadius: 18, offset: const Offset(0, 8)),
+                          ],
+                        ),
+                        child: Image.asset(step.image, fit: BoxFit.cover),
+                      ),
+                      Positioned(
+                        left: 14,
+                        bottom: -18,
+                        child: Container(
+                          width: 44,
+                          height: 44,
+                          decoration: BoxDecoration(
+                            color: AppColors.primary,
+                            shape: BoxShape.circle,
+                            border: Border.all(color: AppColors.surface, width: 3),
+                          ),
+                          child: Icon(step.icon, size: 20, color: AppColors.onDark),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
             ),
           ),
-          const SizedBox(height: 28),
+          const SizedBox(height: 34),
           Text(step.title, textAlign: TextAlign.center, style: theme.textTheme.headlineSmall?.copyWith(fontSize: 22)),
           const SizedBox(height: 12),
           Text(
