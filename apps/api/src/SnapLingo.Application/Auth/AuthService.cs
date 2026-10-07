@@ -1,3 +1,5 @@
+using System.Security.Cryptography;
+using System.Text;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using SnapLingo.Application.Abstractions;
@@ -12,7 +14,8 @@ public sealed record AuthResult(
     string? DisplayName,
     string CefrLevel,
     string AccessToken,
-    DateTimeOffset ExpiresAt);
+    DateTimeOffset ExpiresAt,
+    string RefreshToken);
 
 /// <summary>
 /// User registration/login. Replaces the earlier dev-only demo-user fallback (see README
@@ -53,7 +56,7 @@ public sealed class AuthService(
         db.Users.Add(user);
         await db.SaveChangesAsync(ct);
 
-        return BuildResult(user);
+        return await IssueTokensAsync(user, ct);
     }
 
     public async Task<AuthResult> LoginAsync(string email, string password, CancellationToken ct)
@@ -81,7 +84,32 @@ public sealed class AuthService(
             await db.SaveChangesAsync(ct);
         }
 
-        return BuildResult(user);
+        return await IssueTokensAsync(user, ct);
+    }
+
+    /// <summary>
+    /// Issues a fresh access/refresh token pair from a still-valid refresh token, rotating it
+    /// (the old one stops working the moment this succeeds) so a leaked, already-used token is
+    /// only ever useful once.
+    /// </summary>
+    public async Task<AuthResult> RefreshAsync(string refreshToken, CancellationToken ct)
+    {
+        var user = await FindByRefreshTokenAsync(refreshToken, ct)
+            ?? throw new AuthenticationException("Invalid or expired refresh token.");
+
+        return await IssueTokensAsync(user, ct);
+    }
+
+    /// <summary>Revokes a refresh token server-side (sign-out from this device). Silently does
+    /// nothing for an unknown/already-revoked token — logout must never fail the caller.</summary>
+    public async Task LogoutAsync(string refreshToken, CancellationToken ct)
+    {
+        var user = await FindByRefreshTokenAsync(refreshToken, ct, requireUnexpired: false);
+        if (user is null) return;
+
+        user.RefreshTokenHash = null;
+        user.RefreshTokenExpiresAt = null;
+        await db.SaveChangesAsync(ct);
     }
 
     /// <summary>
@@ -134,14 +162,40 @@ public sealed class AuthService(
         }
 
         await db.SaveChangesAsync(ct);
-        return BuildResult(user);
+        return await IssueTokensAsync(user, ct);
     }
 
-    private AuthResult BuildResult(User user)
+    private async Task<AuthResult> IssueTokensAsync(User user, CancellationToken ct)
     {
-        var token = tokenService.CreateAccessToken(user);
-        return new AuthResult(user.Id, user.Email, user.DisplayName, user.CefrLevel, token.Value, token.ExpiresAt);
+        var accessToken = tokenService.CreateAccessToken(user);
+        var refreshToken = tokenService.CreateRefreshToken();
+
+        user.RefreshTokenHash = HashRefreshToken(refreshToken.Value);
+        user.RefreshTokenExpiresAt = refreshToken.ExpiresAt;
+        await db.SaveChangesAsync(ct);
+
+        return new AuthResult(
+            user.Id, user.Email, user.DisplayName, user.CefrLevel,
+            accessToken.Value, accessToken.ExpiresAt, refreshToken.Value);
     }
+
+    private async Task<User?> FindByRefreshTokenAsync(string refreshToken, CancellationToken ct, bool requireUnexpired = true)
+    {
+        if (string.IsNullOrWhiteSpace(refreshToken)) return null;
+
+        var hash = HashRefreshToken(refreshToken);
+        var user = await db.Users.FirstOrDefaultAsync(u => u.RefreshTokenHash == hash, ct);
+        if (user is null) return null;
+        if (requireUnexpired && (user.RefreshTokenExpiresAt is null || user.RefreshTokenExpiresAt <= clock.UtcNow)) return null;
+
+        return user;
+    }
+
+    /// <summary>Never persist the raw refresh token — only this digest. It's not a password
+    /// (no need for a slow, salted hash); a fast digest over a 256-bit random value is enough to
+    /// keep a stolen database dump from handing out working sessions.</summary>
+    private static string HashRefreshToken(string refreshToken) =>
+        Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(refreshToken)));
 
     private static string NormalizeEmail(string email) => email.Trim().ToLowerInvariant();
 

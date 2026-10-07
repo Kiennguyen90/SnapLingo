@@ -29,6 +29,7 @@ final class AppSettings extends Equatable {
     this.textScale = 1.0,
     this.speechRate = SpeechRate.normal,
     this.onboardingSeen = false,
+    this.tutorialSeen = false,
   });
 
   final bool transcriptByDefault;
@@ -39,6 +40,10 @@ final class AppSettings extends Equatable {
   final SpeechRate speechRate;
   final bool onboardingSeen;
 
+  /// Whether the post-login "how to use the app" walkthrough has already been shown
+  /// on this device, distinct from [onboardingSeen] (the pre-login welcome carousel).
+  final bool tutorialSeen;
+
   AppSettings copyWith({
     bool? transcriptByDefault,
     bool? highlightSpokenWord,
@@ -47,6 +52,7 @@ final class AppSettings extends Equatable {
     double? textScale,
     SpeechRate? speechRate,
     bool? onboardingSeen,
+    bool? tutorialSeen,
   }) =>
       AppSettings(
         transcriptByDefault: transcriptByDefault ?? this.transcriptByDefault,
@@ -56,11 +62,20 @@ final class AppSettings extends Equatable {
         textScale: textScale ?? this.textScale,
         speechRate: speechRate ?? this.speechRate,
         onboardingSeen: onboardingSeen ?? this.onboardingSeen,
+        tutorialSeen: tutorialSeen ?? this.tutorialSeen,
       );
 
   @override
-  List<Object?> get props =>
-      [transcriptByDefault, highlightSpokenWord, textOnlyQuiz, showTranslation, textScale, speechRate, onboardingSeen];
+  List<Object?> get props => [
+        transcriptByDefault,
+        highlightSpokenWord,
+        textOnlyQuiz,
+        showTranslation,
+        textScale,
+        speechRate,
+        onboardingSeen,
+        tutorialSeen,
+      ];
 }
 
 class SettingsCubit extends Cubit<AppSettings> {
@@ -84,6 +99,7 @@ class SettingsCubit extends Cubit<AppSettings> {
         orElse: () => d.speechRate,
       ),
       onboardingSeen: p.getBool('settings.onboardingSeen') ?? d.onboardingSeen,
+      tutorialSeen: p.getBool('settings.tutorialSeen') ?? d.tutorialSeen,
     );
   }
 
@@ -121,5 +137,10 @@ class SettingsCubit extends Cubit<AppSettings> {
   void markOnboardingSeen() {
     _prefs.setBool('settings.onboardingSeen', true);
     emit(state.copyWith(onboardingSeen: true));
+  }
+
+  void markTutorialSeen() {
+    _prefs.setBool('settings.tutorialSeen', true);
+    emit(state.copyWith(tutorialSeen: true));
   }
 }
