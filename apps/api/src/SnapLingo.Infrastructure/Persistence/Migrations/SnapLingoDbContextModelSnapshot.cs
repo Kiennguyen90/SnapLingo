@@ -578,6 +578,13 @@ namespace SnapLingo.Infrastructure.Persistence.Migrations
                     b.Property<bool>("PersonLabelingEnabled")
                         .HasColumnType("boolean");
 
+                    b.Property<DateTimeOffset?>("RefreshTokenExpiresAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("RefreshTokenHash")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
                     b.Property<DateTimeOffset?>("ResearchConsentAt")
                         .HasColumnType("timestamp with time zone");
 
@@ -587,6 +594,9 @@ namespace SnapLingo.Infrastructure.Persistence.Migrations
                         .IsUnique();
 
                     b.HasIndex("GoogleId")
+                        .IsUnique();
+
+                    b.HasIndex("RefreshTokenHash")
                         .IsUnique();
 
                     b.ToTable("users", (string)null);

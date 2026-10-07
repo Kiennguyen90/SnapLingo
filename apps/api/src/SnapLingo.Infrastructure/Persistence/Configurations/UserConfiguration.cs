@@ -20,5 +20,9 @@ public class UserConfiguration : IEntityTypeConfiguration<User>
         builder.Property(u => u.DisplayName).HasMaxLength(200);
         builder.Property(u => u.CefrLevel).IsRequired().HasMaxLength(10);
         builder.Property(u => u.NativeLanguage).HasMaxLength(20);
+        builder.Property(u => u.RefreshTokenHash).HasMaxLength(64);
+        // Unique so a refresh lookup is a single indexed equality match; a null (logged-out)
+        // hash never collides with another null one for the same Postgres reason as GoogleId above.
+        builder.HasIndex(u => u.RefreshTokenHash).IsUnique();
     }
 }

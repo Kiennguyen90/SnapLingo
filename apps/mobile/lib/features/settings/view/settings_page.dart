@@ -9,6 +9,7 @@ import '../../../core/widgets/app_card.dart';
 import '../../../core/widgets/status_views.dart';
 import '../../auth/cubit/auth_cubit.dart';
 import '../../auth/view/register_page.dart';
+import '../../onboarding/view/app_tutorial_page.dart';
 import '../../people/view/people_page.dart';
 import 'accessibility_page.dart';
 
@@ -94,6 +95,15 @@ class SettingsPage extends StatelessWidget {
                   subtitle: const Text('Transcript, tô sáng từ, cỡ chữ'),
                   trailing: const Icon(Icons.chevron_right_rounded),
                   onTap: () => Navigator.of(context).push(AccessibilityPage.route()),
+                ),
+                const Divider(indent: 56),
+                ListTile(
+                  leading: const Icon(Icons.help_outline_rounded),
+                  title: const Text('Xem hướng dẫn sử dụng'),
+                  subtitle: const Text('Chụp ảnh tạo bài học, gắn nhãn, viết lại, chia sẻ'),
+                  trailing: const Icon(Icons.chevron_right_rounded),
+                  onTap: () => Navigator.of(context, rootNavigator: true)
+                      .push(AppTutorialPage.route(markSeenOnClose: false)),
                 ),
               ],
             ),

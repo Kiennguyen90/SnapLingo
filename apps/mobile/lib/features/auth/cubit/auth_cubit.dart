@@ -33,7 +33,7 @@ class AuthCubit extends Cubit<AuthState> {
         _users = userService,
         super(const AuthState.unknown()) {
     apiClient.onUnauthorized = () {
-      if (state.status == AuthStatus.authenticated) logout();
+      if (state.status == AuthStatus.authenticated) _handleUnauthorized();
     };
   }
 
@@ -81,6 +81,17 @@ class AuthCubit extends Cubit<AuthState> {
   Future<void> logout() async {
     await _auth.logout();
     emit(const AuthState.unauthenticated());
+  }
+
+  /// A request came back 401 — the access token likely just expired mid-session. Try a
+  /// silent refresh first; only fall back to signing the learner out if the refresh token
+  /// is itself missing/expired/revoked.
+  Future<void> _handleUnauthorized() async {
+    try {
+      await _auth.refresh();
+    } catch (_) {
+      await logout();
+    }
   }
 
   Future<void> _loadProfile() async {

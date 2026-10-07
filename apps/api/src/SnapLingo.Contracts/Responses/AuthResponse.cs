@@ -6,4 +6,5 @@ public sealed record AuthResponse(
     string? DisplayName,
     string CefrLevel,
     string AccessToken,
-    DateTimeOffset ExpiresAt);
+    DateTimeOffset ExpiresAt,
+    string RefreshToken);

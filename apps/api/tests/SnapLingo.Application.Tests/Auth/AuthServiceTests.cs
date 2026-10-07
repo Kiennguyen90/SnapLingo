@@ -184,4 +184,65 @@ public class AuthServiceTests
         await Assert.ThrowsAsync<AuthenticationException>(() =>
             service.LoginAsync("googleonly@gmail.com", "AnyPassword1!", CancellationToken.None));
     }
+
+    [Fact]
+    public async Task LoginAsync_ReturnsARefreshTokenAlongsideTheAccessToken()
+    {
+        await using var db = CreateDb();
+        var service = CreateService(db);
+        await service.RegisterAsync("refresh@example.com", "Passw0rd!", null, null, null, CancellationToken.None);
+
+        var result = await service.LoginAsync("refresh@example.com", "Passw0rd!", CancellationToken.None);
+
+        Assert.False(string.IsNullOrWhiteSpace(result.RefreshToken));
+    }
+
+    [Fact]
+    public async Task RefreshAsync_ValidToken_IssuesNewTokensAndRotatesTheOldOneOut()
+    {
+        await using var db = CreateDb();
+        var service = CreateService(db);
+        var registered = await service.RegisterAsync("rotate@example.com", "Passw0rd!", null, null, null, CancellationToken.None);
+
+        var refreshed = await service.RefreshAsync(registered.RefreshToken, CancellationToken.None);
+
+        Assert.Equal(registered.UserId, refreshed.UserId);
+        Assert.NotEqual(registered.RefreshToken, refreshed.RefreshToken);
+
+        // The rotated-out token must no longer work.
+        await Assert.ThrowsAsync<AuthenticationException>(() =>
+            service.RefreshAsync(registered.RefreshToken, CancellationToken.None));
+    }
+
+    [Fact]
+    public async Task RefreshAsync_UnknownToken_Throws()
+    {
+        await using var db = CreateDb();
+        var service = CreateService(db);
+
+        await Assert.ThrowsAsync<AuthenticationException>(() =>
+            service.RefreshAsync("not-a-real-token", CancellationToken.None));
+    }
+
+    [Fact]
+    public async Task LogoutAsync_RevokesTheRefreshToken()
+    {
+        await using var db = CreateDb();
+        var service = CreateService(db);
+        var registered = await service.RegisterAsync("logout@example.com", "Passw0rd!", null, null, null, CancellationToken.None);
+
+        await service.LogoutAsync(registered.RefreshToken, CancellationToken.None);
+
+        await Assert.ThrowsAsync<AuthenticationException>(() =>
+            service.RefreshAsync(registered.RefreshToken, CancellationToken.None));
+    }
+
+    [Fact]
+    public async Task LogoutAsync_UnknownToken_DoesNotThrow()
+    {
+        await using var db = CreateDb();
+        var service = CreateService(db);
+
+        await service.LogoutAsync("not-a-real-token", CancellationToken.None);
+    }
 }
