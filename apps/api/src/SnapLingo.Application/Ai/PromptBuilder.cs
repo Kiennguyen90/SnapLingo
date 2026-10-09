@@ -17,8 +17,14 @@ public static class PromptBuilder
     /// lookup treat every lesson from the emotion-driven v1.x prompts as a cache miss.
     /// 2.2 never lets the model guess a pictured person's gender (they/them unless the learner
     /// gave pronouns), tells it how Vietnamese addresses each relation, and passes the learner's name.
+    /// 2.3 tells the regenerate loop to fix a rejected detail in place (e.g. reword to third person)
+    /// instead of inventing an unrelated replacement — found regressing a lesson's grounding rate
+    /// during the NoEmotion pipeline evaluation (round 1 introduced a brand-new unsupported claim) —
+    /// and actually renders <see cref="LessonProfile.SentencePolicy"/>, which every prompt built it
+    /// but never printed; CEFR level now picks a level-specific policy via <see cref="LessonProfile.ForCefr"/>
+    /// instead of one generic "match vocabulary and sentence length to this level" line for every level.
     /// </summary>
-    public const string PromptVersion = "lesson-v2.2.0";
+    public const string PromptVersion = "lesson-v2.3.0";
 
     public static string Build(GenerateLessonInput input)
     {
@@ -89,12 +95,19 @@ public static class PromptBuilder
                 sb.AppendLine($"- \"{r.En}\": {r.Reason}");
             }
 
+            sb.AppendLine(
+                "For each one: keep the same underlying evidence and fix only the exact problem named in " +
+                "its reason (e.g. an \"I\"/unlabeled-person reason means rewrite that detail in the third " +
+                "person as \"a person\"/\"someone\" + \"they\", not drop it). If a detail truly cannot be " +
+                "fixed, omit it — never invent a new, different detail to fill the gap; an unverifiable " +
+                "replacement is rejected the same way the original was.");
             sb.AppendLine();
         }
 
         sb.AppendLine("TASK: return, in English and Vietnamese:");
         sb.AppendLine("1. scene: a short lesson title and a 1-2 sentence factual description of the photo,");
         sb.AppendLine($"2. story: a first-person diary moment of {p.StorySentenceMin}-{p.StorySentenceMax} sentences with a tiny arc, not a vocabulary checklist:");
+        sb.AppendLine($"   - sentence length/grammar for this level: {p.SentencePolicy}");
         sb.AppendLine("   - open with what is happening now (photo + time), then connect it to the learner's life (habits, past visits, labeled people) when the evidence allows, and end with a small reflection;");
         sb.AppendLine("   - if a C code shows today differs from a habit, build the story around that contrast (habit in present simple, then \"But today...\");");
         sb.AppendLine("   - weave the vocabulary in naturally: each word should be part of what is happening, not a caption on its own sentence;");

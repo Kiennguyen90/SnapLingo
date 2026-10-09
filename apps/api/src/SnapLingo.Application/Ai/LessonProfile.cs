@@ -41,4 +41,43 @@ public sealed record LessonProfile(
         p.Emotion, p.Tone, p.StoryDirection, p.VocabularyMin, p.VocabularyMax,
         p.StorySentenceMin, p.StorySentenceMax, p.SentencePolicy, p.QuizPolicy,
         p.QuizItemMin, p.QuizItemMax, p.TtsStyleHint);
+
+    /// <summary>
+    /// <see cref="Default"/> used the same sentence shape at every CEFR level and left all
+    /// difficulty matching to one line in the prompt ("match vocabulary and sentence length to
+    /// this level") with no structural difference and nothing checking the result. Found during
+    /// the NoEmotion pipeline evaluation: the dev DB had 15/16 lessons at A2 (the signup default)
+    /// and no current-pipeline B1+ lesson to compare against. This gives each of the app's three
+    /// difficulty tiers (<c>cefrLevels</c> in the mobile app's "Dễ/Trung bình/Khó" grouping) its
+    /// own sentence-count and length policy, so the prompt's SentencePolicy line carries a concrete,
+    /// level-specific number instead of only the bare CEFR code.
+    /// </summary>
+    public static LessonProfile ForCefr(string cefrLevel) => cefrLevel.Trim().ToUpperInvariant() switch
+    {
+        "A1" or "A2" => Default with
+        {
+            VocabularyMin = 4,
+            VocabularyMax = 6,
+            StorySentenceMin = 3,
+            StorySentenceMax = 5,
+            SentencePolicy = "A1/A2: mostly 5-10 words per sentence, simple present/present continuous, no subordinate clauses.",
+        },
+        "B1" or "B2" => Default with
+        {
+            VocabularyMin = 5,
+            VocabularyMax = 7,
+            StorySentenceMin = 3,
+            StorySentenceMax = 6,
+            SentencePolicy = "B1/B2: mostly 8-14 words per sentence; past/present perfect and one subordinate clause per sentence are fine.",
+        },
+        "C1" or "C2" => Default with
+        {
+            VocabularyMin = 6,
+            VocabularyMax = 8,
+            StorySentenceMin = 4,
+            StorySentenceMax = 6,
+            SentencePolicy = "C1/C2: mostly 10-18 words per sentence; varied tenses, linking words and subordinate clauses are expected.",
+        },
+        _ => Default,
+    };
 }
