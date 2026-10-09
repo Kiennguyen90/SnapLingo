@@ -282,7 +282,7 @@ public sealed class LessonService(
     private EmotionType? EffectiveEmotion(EmotionType? requested) => _features.EmotionSelection ? requested : null;
 
     private LessonProfile ProfileFor(EmotionType? emotion, string cefrLevel) =>
-        emotion is null ? LessonProfile.Default : LessonProfile.FromEmotion(emotionPolicy.GetProfile(emotion.Value, cefrLevel));
+        emotion is null ? LessonProfile.ForCefr(cefrLevel) : LessonProfile.FromEmotion(emotionPolicy.GetProfile(emotion.Value, cefrLevel));
 
     /// <summary>Experiment condition for the next lesson (proposal section 6.2, E5).</summary>
     private async Task<(MemoryMode, VerifierMode)> ChooseConditionAsync(Guid userId, CancellationToken ct)

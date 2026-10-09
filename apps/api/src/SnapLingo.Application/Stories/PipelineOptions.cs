@@ -10,7 +10,7 @@ public sealed class FeatureOptions
     /// <summary>
     /// Emotion selection is parked as a future feature: the implementation (EmotionPolicy,
     /// emotion-aware prompt, mobile picker) is kept, but while this is false any emotion sent
-    /// by a client is ignored and lessons use the neutral <c>LessonProfile.Default</c>.
+    /// by a client is ignored and lessons use the CEFR-only profile (<see cref="LessonProfile.ForCefr"/>).
     /// </summary>
     public bool EmotionSelection { get; set; }
 }

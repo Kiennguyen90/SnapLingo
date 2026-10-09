@@ -75,4 +75,30 @@ public class PromptBuilderTests
         Assert.Contains("REJECTED BY THE FACT CHECKER", prompt);
         Assert.Contains("\"I am with my friends.\": No one is labeled.", prompt);
     }
+
+    [Fact]
+    public void Build_TellsTheRegenerateLoopToFixInPlaceNotInventAReplacement()
+    {
+        // Regression found while evaluating the NoEmotion pipeline: round 1 reused the exact
+        // rejected framing and then invented an unrelated new unsupported sentence, dropping
+        // the grounded rate instead of raising it.
+        var prompt = PromptBuilder.Build(BuildInput(rejected: [new RejectedSentence("I am with my friends.", "No one is labeled.")]));
+
+        Assert.Contains("never invent a new, different detail to fill the gap", prompt);
+    }
+
+    [Theory]
+    [InlineData("A1", "A1/A2")]
+    [InlineData("A2", "A1/A2")]
+    [InlineData("B1", "B1/B2")]
+    [InlineData("B2", "B1/B2")]
+    [InlineData("C1", "C1/C2")]
+    [InlineData("C2", "C1/C2")]
+    public void Build_RendersALevelSpecificSentencePolicy(string cefrLevel, string expectedTierPrefix)
+    {
+        var profile = LessonProfile.ForCefr(cefrLevel);
+        var prompt = PromptBuilder.Build(BuildInput(profile) with { CefrLevel = cefrLevel });
+
+        Assert.Contains($"sentence length/grammar for this level: {expectedTierPrefix}:", prompt);
+    }
 }
