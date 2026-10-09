@@ -87,6 +87,27 @@ public class PromptBuilderTests
         Assert.Contains("never invent a new, different detail to fill the gap", prompt);
     }
 
+    [Fact]
+    public void Build_TellsTheModelToRewriteVisionCaptionsToFirstPersonWhenSelfLabeled()
+    {
+        // Reported by a user: labeling themselves ("Chính tôi") on a brand-new photo still
+        // produced "a person" in the story. Root cause: the vision model (Module 1) writes I-coded
+        // captions in the third person before any labeling happens, and the old Rule 3 only forbade
+        // "I" when NOT self-labeled — it never told the model to switch TO "I" when self-labeled, so
+        // it kept echoing the generic caption verbatim (fully grounded, so the verifier never caught it).
+        var evidence = new EvidenceBundle(
+            [
+                new EvidenceItem("I1", EvidenceSource.Image, "A person is standing on a garden pathway with heart-shaped greenery.", "Ảnh hiện tại"),
+                new EvidenceItem("P1", EvidenceSource.Person, "The learner (\"I\") is in this photo. (labeled by the learner)", "Nhãn người: bạn"),
+            ],
+            Sunday, "garden pathway", ["heart-shaped greenery"], 1,
+            [new LabeledPerson("P1", Guid.NewGuid(), null, "self")], 0, TemporalContext.Empty, []);
+
+        var prompt = PromptBuilder.Build(BuildInput() with { Evidence = evidence });
+
+        Assert.Contains("rewrite every sentence about that person in the first person", prompt);
+    }
+
     [Theory]
     [InlineData("A1", "A1/A2")]
     [InlineData("A2", "A1/A2")]
