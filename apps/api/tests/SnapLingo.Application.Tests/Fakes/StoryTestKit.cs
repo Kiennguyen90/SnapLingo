@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
+using SnapLingo.Application.Abstractions;
 using SnapLingo.Application.Ai;
 using SnapLingo.Application.Emotion;
 using SnapLingo.Application.Lessons;
@@ -27,19 +28,22 @@ public static class StoryTestKit
         IClaimJudge? judge = null,
         StoryPipelineOptions? pipelineOptions = null,
         bool emotionSelection = false,
-        int maxLessonsPerUser = 0)
+        int maxLessonsPerUser = 0,
+        int maxLessonsPerDayForPro = 0,
+        IDateTimeProvider? clock = null)
     {
         var options = Options.Create(pipelineOptions ?? new StoryPipelineOptions());
+        var resolvedClock = clock ?? new FixedDateTimeProvider(Now);
         var memory = new MemoryService(db, extractor ?? new FakeEventExtractor(), new HashingTextEmbedder(),
-            new FixedDateTimeProvider(Now), options);
+            resolvedClock, options);
         var pipeline = new StoryPipeline(generator ?? new FakeLessonGenerator(), new GroundingVerifier(judge ?? new CitationClaimJudge()));
 
         return new LessonService(db, new EmotionPolicy(), memory, pipeline, new InMemoryObjectStorage(),
-            new FixedDateTimeProvider(Now), options, Options.Create(new FeatureOptions { EmotionSelection = emotionSelection }),
-            Options.Create(new LessonLimitOptions { MaxLessonsPerUser = maxLessonsPerUser }));
+            resolvedClock, options, Options.Create(new FeatureOptions { EmotionSelection = emotionSelection }),
+            Options.Create(new LessonLimitOptions { MaxLessonsPerUser = maxLessonsPerUser, MaxLessonsPerDayForPro = maxLessonsPerDayForPro }));
     }
 
-    public static async Task<Guid> SeedUserAsync(SnapLingoDbContext db, bool personLabeling = false)
+    public static async Task<Guid> SeedUserAsync(SnapLingoDbContext db, bool personLabeling = false, bool isPro = false)
     {
         var userId = Guid.NewGuid();
         db.Users.Add(new User
@@ -49,6 +53,7 @@ public static class StoryTestKit
             PasswordHash = "test-hash",
             CefrLevel = "A2",
             PersonLabelingEnabled = personLabeling,
+            IsPro = isPro,
             CreatedAt = Now
         });
         await db.SaveChangesAsync();

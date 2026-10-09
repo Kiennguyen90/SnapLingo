@@ -18,6 +18,7 @@ final class UserProfile extends Equatable {
     this.nativeLanguage,
     this.personLabelingEnabled = false,
     this.researchConsent = false,
+    this.isPro = false,
   });
 
   final String userId;
@@ -31,6 +32,10 @@ final class UserProfile extends Equatable {
 
   /// The learner agreed that usage data may be used for the study.
   final bool researchConsent;
+
+  /// Pro learners get a daily lesson allowance instead of the free tier's fixed lesson cap.
+  /// No payment provider is wired up yet — see `UserService.setPro`.
+  final bool isPro;
 
   /// Name used in greetings — falls back to the part of the email before `@`.
   String get greetingName {
@@ -52,9 +57,10 @@ final class UserProfile extends Equatable {
         nativeLanguage: json['nativeLanguage']?.toString(),
         personLabelingEnabled: json['personLabelingEnabled'] == true,
         researchConsent: json['researchConsentAt'] != null,
+        isPro: json['isPro'] == true,
       );
 
   @override
   List<Object?> get props =>
-      [userId, email, displayName, cefrLevel, nativeLanguage, personLabelingEnabled, researchConsent];
+      [userId, email, displayName, cefrLevel, nativeLanguage, personLabelingEnabled, researchConsent, isPro];
 }

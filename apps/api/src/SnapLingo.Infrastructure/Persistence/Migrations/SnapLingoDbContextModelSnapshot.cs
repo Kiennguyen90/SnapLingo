@@ -566,6 +566,9 @@ namespace SnapLingo.Infrastructure.Persistence.Migrations
                         .HasMaxLength(50)
                         .HasColumnType("character varying(50)");
 
+                    b.Property<bool>("IsPro")
+                        .HasColumnType("boolean");
+
                     b.Property<string>("NativeLanguage")
                         .HasMaxLength(20)
                         .HasColumnType("character varying(20)");

@@ -2,11 +2,17 @@ import 'package:flutter/material.dart';
 
 /// Every color in the app comes from here — widgets never inline `Color(...)`.
 /// Values are sampled from the high-fidelity mockups in `SnapLingo_Design/`.
+///
+/// `primary`/`primaryDark`/`primarySoft`/`primaryBorder` and `AppGradients.primaryCard` are
+/// sampled directly from `SnapLingo_Design/Logo/SnapLingo Gradient App Logo.png` (the official
+/// app icon/wordmark) so the in-app brand color never drifts from the icon users see on their
+/// home screen. The gradient runs blue `#3681FD` (top-left) to indigo `#5A50FB` (bottom-right);
+/// `primary` is the indigo stop so solid UI (buttons, the wordmark) reads as one brand color.
 abstract final class AppColors {
-  static const Color primary = Color(0xFF5B5BE8);
-  static const Color primaryDark = Color(0xFF4642CF);
-  static const Color primarySoft = Color(0xFFEEEEFF);
-  static const Color primaryBorder = Color(0xFFD6D6FB);
+  static const Color primary = Color(0xFF5A50FB);
+  static const Color primaryDark = Color(0xFF463EC4);
+  static const Color primarySoft = Color(0xFFF3F3FF);
+  static const Color primaryBorder = Color(0xFFDEDCFE);
 
   static const Color background = Color(0xFFF7F7FD);
   static const Color surface = Color(0xFFFFFFFF);
@@ -34,8 +40,9 @@ abstract final class AppColors {
 }
 
 abstract final class AppGradients {
+  /// The exact gradient of the app icon/logo mark (see `AppColors` doc comment above).
   static const LinearGradient primaryCard = LinearGradient(
-    colors: [Color(0xFF6A6AF0), Color(0xFF5250DC)],
+    colors: [Color(0xFF3681FD), Color(0xFF5A50FB)],
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
   );
