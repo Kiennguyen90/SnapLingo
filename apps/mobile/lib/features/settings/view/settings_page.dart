@@ -109,6 +109,8 @@ class SettingsPage extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 16),
+          if (profile != null) _ProCard(profile: profile),
+          const SizedBox(height: 16),
           if (profile != null) _PrivacyCard(profile: profile),
           const SizedBox(height: 16),
           AppCard(
@@ -210,6 +212,70 @@ class _ProfileSheetState extends State<_ProfileSheet> {
           const SizedBox(height: 24),
           FilledButton(onPressed: _saving ? null : _save, child: Text(_saving ? 'Đang lưu…' : 'Lưu')),
         ],
+      ),
+    );
+  }
+}
+
+/// Pro toggle: no payment provider is wired up yet, so this is the whole "upgrade" flow for
+/// now (see `UserService.setPro`). Pro swaps the free tier's fixed lesson cap for a 5-lesson
+/// daily allowance.
+class _ProCard extends StatefulWidget {
+  const _ProCard({required this.profile});
+
+  final UserProfile profile;
+
+  @override
+  State<_ProCard> createState() => _ProCardState();
+}
+
+class _ProCardState extends State<_ProCard> {
+  bool _saving = false;
+
+  Future<void> _toggle(bool on) async {
+    if (on) {
+      final ok = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Nâng cấp Pro'),
+          content: const Text(
+            'Gói Pro cho phép tạo tối đa 5 bài học mỗi ngày, thay vì giới hạn số bài học cố định của gói miễn phí. '
+            'Đây là bản dùng thử nội bộ, chưa thu phí.',
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Hủy')),
+            FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('Nâng cấp')),
+          ],
+        ),
+      );
+      if (ok != true || !mounted) return;
+    }
+
+    setState(() => _saving = true);
+    try {
+      await context.read<AuthCubit>().setPro(on);
+    } on ApiException catch (e) {
+      if (mounted) showErrorSnack(context, e.message);
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final profile = widget.profile;
+    return AppCard(
+      padding: EdgeInsets.zero,
+      child: SwitchListTile(
+        secondary: Icon(Icons.workspace_premium_rounded, color: profile.isPro ? AppColors.primary : null),
+        title: Text(profile.isPro ? 'Gói Pro' : 'Gói miễn phí'),
+        subtitle: Text(
+          profile.isPro
+              ? 'Tạo tối đa 5 bài học mỗi ngày.'
+              : 'Nâng cấp để tạo tối đa 5 bài học mỗi ngày, thay vì giới hạn tổng số bài học.',
+        ),
+        value: profile.isPro,
+        onChanged: _saving ? null : _toggle,
       ),
     );
   }

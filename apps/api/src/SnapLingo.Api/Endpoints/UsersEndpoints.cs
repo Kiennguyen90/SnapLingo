@@ -31,10 +31,23 @@ public static class UsersEndpoints
         })
         .Produces<UserResponse>();
 
+        // No payment provider yet (see SetProRequest): this is a stand-in "upgrade/downgrade"
+        // action until a real purchase flow sets IsPro from a verified receipt instead.
+        group.MapPut("/me/pro", async (
+            SetProRequest request,
+            UserService userService,
+            ICurrentUserService currentUser,
+            CancellationToken ct) =>
+        {
+            var profile = await userService.SetProAsync(currentUser.UserId, request.IsPro, ct);
+            return Results.Ok(ToResponse(profile));
+        })
+        .Produces<UserResponse>();
+
         return app;
     }
 
     private static UserResponse ToResponse(UserProfile profile) => new(
         profile.UserId, profile.Email, profile.DisplayName, profile.CefrLevel, profile.NativeLanguage,
-        profile.PersonLabelingEnabled, profile.ResearchConsentAt, profile.CreatedAt);
+        profile.PersonLabelingEnabled, profile.IsPro, profile.ResearchConsentAt, profile.CreatedAt);
 }

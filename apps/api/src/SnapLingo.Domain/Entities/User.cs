@@ -17,6 +17,13 @@ public class User
     /// <summary>Opt-in: the learner may label people in their photos (proposal section 3.4). Off by default.</summary>
     public bool PersonLabelingEnabled { get; set; }
 
+    /// <summary>
+    /// Pro learners get a daily lesson allowance (config Limits:MaxLessonsPerDayForPro) instead
+    /// of the free tier's fixed concurrent-lesson cap. No payment provider is wired up yet —
+    /// this is set directly (self-serve toggle for now; a real purchase flow would set it instead).
+    /// </summary>
+    public bool IsPro { get; set; }
+
     /// <summary>Set when the learner agrees that their in-app usage data may be used for the
     /// study (informed consent, proposal section 3.4). Null means not consented.</summary>
     public DateTimeOffset? ResearchConsentAt { get; set; }

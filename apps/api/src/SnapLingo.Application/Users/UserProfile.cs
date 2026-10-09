@@ -7,5 +7,6 @@ public sealed record UserProfile(
     string CefrLevel,
     string? NativeLanguage,
     bool PersonLabelingEnabled,
+    bool IsPro,
     DateTimeOffset? ResearchConsentAt,
     DateTimeOffset CreatedAt);

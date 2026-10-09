@@ -96,12 +96,23 @@ public sealed class LessonService(
     }
 
     /// <summary>
-    /// A learner may hold at most <see cref="LessonLimitOptions.MaxLessonsPerUser"/> lessons (every
-    /// pipeline run costs model calls). Failed lessons are not counted, and a retry that is answered
-    /// with an existing lesson never reaches this check.
+    /// A free learner may hold at most <see cref="LessonLimitOptions.MaxLessonsPerUser"/> lessons
+    /// (every pipeline run costs model calls). A Pro learner instead gets a daily allowance
+    /// (<see cref="LessonLimitOptions.MaxLessonsPerDayForPro"/>) that is not reduced by deleting
+    /// lessons, only by waiting for the next local day. Failed lessons are not counted, and a
+    /// retry that is answered with an existing lesson never reaches this check.
     /// </summary>
     private async Task EnsureWithinLessonLimitAsync(Guid userId, CancellationToken ct)
     {
+        var user = await db.Users.FirstOrDefaultAsync(u => u.Id == userId, ct)
+            ?? throw new NotFoundException("User not found.");
+
+        if (user.IsPro)
+        {
+            await EnsureWithinDailyProLimitAsync(userId, ct);
+            return;
+        }
+
         var max = _limits.MaxLessonsPerUser;
         if (max <= 0)
         {
@@ -112,7 +123,28 @@ public sealed class LessonService(
         if (current >= max)
         {
             throw new LimitExceededException(
-                $"Bạn đã đạt giới hạn {max} bài học. Hãy xóa một bài cũ để tạo bài mới.");
+                $"Bạn đã đạt giới hạn {max} bài học. Hãy xóa một bài cũ để tạo bài mới, hoặc nâng cấp Pro để có {_limits.MaxLessonsPerDayForPro} bài/ngày.");
+        }
+    }
+
+    private async Task EnsureWithinDailyProLimitAsync(Guid userId, CancellationToken ct)
+    {
+        var max = _limits.MaxLessonsPerDayForPro;
+        if (max <= 0)
+        {
+            return;
+        }
+
+        var offset = TimeSpan.FromMinutes(_pipeline.DefaultUtcOffsetMinutes);
+        var localNow = clock.UtcNow.ToOffset(offset);
+        var startOfLocalDayUtc = new DateTimeOffset(localNow.Year, localNow.Month, localNow.Day, 0, 0, 0, offset).ToUniversalTime();
+
+        var createdToday = await db.Lessons.CountAsync(
+            l => l.UserId == userId && l.Status != LessonStatus.Failed && l.CreatedAt >= startOfLocalDayUtc, ct);
+        if (createdToday >= max)
+        {
+            throw new LimitExceededException(
+                $"Bạn đã đạt giới hạn {max} bài học/ngày của gói Pro. Hãy quay lại vào ngày mai.");
         }
     }
 

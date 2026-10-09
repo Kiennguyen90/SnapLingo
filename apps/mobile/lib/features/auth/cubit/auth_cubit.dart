@@ -78,6 +78,12 @@ class AuthCubit extends Cubit<AuthState> {
     emit(AuthState.authenticated(profile));
   }
 
+  /// No payment provider is wired up yet — see `UserService.setPro`.
+  Future<void> setPro(bool isPro) async {
+    final profile = await _users.setPro(isPro);
+    emit(AuthState.authenticated(profile));
+  }
+
   Future<void> logout() async {
     await _auth.logout();
     emit(const AuthState.unauthenticated());
