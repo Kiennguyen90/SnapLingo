@@ -23,8 +23,14 @@ public static class PromptBuilder
     /// and actually renders <see cref="LessonProfile.SentencePolicy"/>, which every prompt built it
     /// but never printed; CEFR level now picks a level-specific policy via <see cref="LessonProfile.ForCefr"/>
     /// instead of one generic "match vocabulary and sentence length to this level" line for every level.
+    /// 2.4 tells the model to rewrite the vision model's generic "a person..." captions into "I..."
+    /// when a P code is self — reported by a user: labeling themselves in a brand-new photo still
+    /// produced "a person" in the story. Root cause: Rule 3 only forbade "I" when NOT self-labeled;
+    /// it never required switching TO "I" when self-labeled, so the model kept echoing the I-coded
+    /// vision caption (always third person, written before labeling even happens) verbatim — a fully
+    /// grounded, zero-effort sentence the verifier had no reason to flag.
     /// </summary>
-    public const string PromptVersion = "lesson-v2.3.0";
+    public const string PromptVersion = "lesson-v2.4.0";
 
     public static string Build(GenerateLessonInput input)
     {
@@ -41,6 +47,7 @@ public static class PromptBuilder
         sb.AppendLine("3. People: only name or give a relation (mom, brother, grandmother, friend...) to people with a P code, using exactly that name/relation and exactly the pronouns given for that P code (she/her, he/him or they/them). People under U1 must never be named, given a relation or given a gender: write \"a person\" / \"someone\" and refer to them with \"they\", never \"he\" or \"she\" (a photo does not tell you someone's gender). Describe only what is visible and hedge.");
         sb.AppendLine("   Vietnamese text: refer to a labeled person the way a Vietnamese speaker does for that relation (see VIETNAMESE ADDRESS below), never with 'nó' or 'họ' for one person. For U1 people use neutral 'một người' / 'người đó' / 'người ấy', never 'cô ấy' or 'anh ấy'. The learner is always 'tôi'.");
         sb.AppendLine("   The learner (\"I\") is NOT the person in the photo unless a P code says \"I\"/self: the learner may be the one taking the photo. Without that label, describe visible people in the third person (\"a woman in sunglasses\"), never as \"I am wearing...\".");
+        sb.AppendLine("   If a P code DOES say \"I\"/self: the EVIDENCE image captions were written by a separate vision model that does not know this, so they describe the pictured person generically (\"a person stands...\"). Do not copy that generic wording into the story — rewrite every sentence about that person in the first person (\"I stand...\", \"I am wearing...\"), citing the same codes.");
         sb.AppendLine("4. Habits: only say \"usually/often/every.../on weekdays\" when an H code supports it, and cite that H code. A single past photo is not a habit.");
         sb.AppendLine("5. Time: day and time of day must match T1. Contrasts with the past (\"But today...\") must cite a C code.");
         sb.AppendLine("6. Anything you infer but cannot cite must be hedged with \"maybe\", \"it seems\", \"probably\" and given an empty evidence list. Keep inferences to at most one sentence.");
