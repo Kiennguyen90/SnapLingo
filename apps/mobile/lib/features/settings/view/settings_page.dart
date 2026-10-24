@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
@@ -7,6 +8,7 @@ import '../../../core/settings/settings_cubit.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/app_card.dart';
 import '../../../core/widgets/status_views.dart';
+import '../../../dev/mlkit_label_dump_page.dart';
 import '../../auth/cubit/auth_cubit.dart';
 import '../../auth/view/register_page.dart';
 import '../../onboarding/view/app_tutorial_page.dart';
@@ -51,7 +53,7 @@ class SettingsPage extends StatelessWidget {
                     ],
                   ),
                 ),
-                const Icon(Icons.chevron_right_rounded, color: AppColors.textSecondary),
+                Icon(Icons.chevron_right_rounded, color: AppColors.textSecondary),
               ],
             ),
           ),
@@ -92,7 +94,7 @@ class SettingsPage extends StatelessWidget {
                 ListTile(
                   leading: const Icon(Icons.accessibility_new_rounded),
                   title: const Text('Trợ năng'),
-                  subtitle: const Text('Transcript, tô sáng từ, cỡ chữ'),
+                  subtitle: const Text('Transcript, tô sáng từ, cỡ chữ, giao diện tối'),
                   trailing: const Icon(Icons.chevron_right_rounded),
                   onTap: () => Navigator.of(context).push(AccessibilityPage.route()),
                 ),
@@ -105,6 +107,16 @@ class SettingsPage extends StatelessWidget {
                   onTap: () => Navigator.of(context, rootNavigator: true)
                       .push(AppTutorialPage.route(markSeenOnClose: false)),
                 ),
+                if (kDebugMode) ...[
+                  const Divider(indent: 56),
+                  ListTile(
+                    leading: const Icon(Icons.science_outlined),
+                    title: const Text('DEV: Xuất nhãn ML Kit'),
+                    subtitle: const Text('Thử nghiệm giai đoạn 2 — CNN on-device'),
+                    trailing: const Icon(Icons.chevron_right_rounded),
+                    onTap: () => Navigator.of(context).push(MlKitLabelDumpPage.route()),
+                  ),
+                ],
               ],
             ),
           ),
@@ -116,8 +128,8 @@ class SettingsPage extends StatelessWidget {
           AppCard(
             padding: EdgeInsets.zero,
             child: ListTile(
-              leading: const Icon(Icons.logout_rounded, color: AppColors.error),
-              title: const Text('Đăng xuất', style: TextStyle(color: AppColors.error)),
+              leading: Icon(Icons.logout_rounded, color: AppColors.error),
+              title: Text('Đăng xuất', style: TextStyle(color: AppColors.error)),
               onTap: () => _confirmLogout(context),
             ),
           ),
@@ -217,65 +229,26 @@ class _ProfileSheetState extends State<_ProfileSheet> {
   }
 }
 
-/// Pro toggle: no payment provider is wired up yet, so this is the whole "upgrade" flow for
-/// now (see `UserService.setPro`). Pro swaps the free tier's fixed lesson cap for a 5-lesson
-/// daily allowance.
-class _ProCard extends StatefulWidget {
+/// Read-only Pro status: no payment provider is wired up yet, so Pro is granted directly in
+/// the database (not from the app) and shown here purely for information. Pro swaps the free
+/// tier's fixed lesson cap for a 5-lesson daily allowance.
+class _ProCard extends StatelessWidget {
   const _ProCard({required this.profile});
 
   final UserProfile profile;
 
   @override
-  State<_ProCard> createState() => _ProCardState();
-}
-
-class _ProCardState extends State<_ProCard> {
-  bool _saving = false;
-
-  Future<void> _toggle(bool on) async {
-    if (on) {
-      final ok = await showDialog<bool>(
-        context: context,
-        builder: (context) => AlertDialog(
-          title: const Text('Nâng cấp Pro'),
-          content: const Text(
-            'Gói Pro cho phép tạo tối đa 5 bài học mỗi ngày, thay vì giới hạn số bài học cố định của gói miễn phí. '
-            'Đây là bản dùng thử nội bộ, chưa thu phí.',
-          ),
-          actions: [
-            TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Hủy')),
-            FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('Nâng cấp')),
-          ],
-        ),
-      );
-      if (ok != true || !mounted) return;
-    }
-
-    setState(() => _saving = true);
-    try {
-      await context.read<AuthCubit>().setPro(on);
-    } on ApiException catch (e) {
-      if (mounted) showErrorSnack(context, e.message);
-    } finally {
-      if (mounted) setState(() => _saving = false);
-    }
-  }
-
-  @override
   Widget build(BuildContext context) {
-    final profile = widget.profile;
     return AppCard(
       padding: EdgeInsets.zero,
-      child: SwitchListTile(
-        secondary: Icon(Icons.workspace_premium_rounded, color: profile.isPro ? AppColors.primary : null),
+      child: ListTile(
+        leading: Icon(Icons.workspace_premium_rounded, color: profile.isPro ? AppColors.primary : null),
         title: Text(profile.isPro ? 'Gói Pro' : 'Gói miễn phí'),
         subtitle: Text(
           profile.isPro
               ? 'Tạo tối đa 5 bài học mỗi ngày.'
-              : 'Nâng cấp để tạo tối đa 5 bài học mỗi ngày, thay vì giới hạn tổng số bài học.',
+              : 'Giới hạn số bài học cố định. Liên hệ để nâng cấp lên gói Pro.',
         ),
-        value: profile.isPro,
-        onChanged: _saving ? null : _toggle,
       ),
     );
   }

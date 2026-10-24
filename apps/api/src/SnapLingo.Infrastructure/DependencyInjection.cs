@@ -99,6 +99,18 @@ public static class DependencyInjection
         // Background music adapter: fake today, same swap-in-a-real-provider-later shape as TTS.
         services.AddSingleton<IBackgroundMusicService, FakeBackgroundMusicService>();
 
+        // Experiment-only override (giai đoạn 2 "CNN on-device" A/B measurement, see root
+        // README): swap just Module 1 for ML Kit's on-device labels, read back from a file dump
+        // a real phone produced, leaving every other adapter (OpenAI or fake, selected above) in
+        // place. Registering IEventExtractor again here relies on the ASP.NET Core DI convention
+        // that the *last* registration wins when a single instance is resolved.
+        if (string.Equals(configuration["EventExtractor:Provider"], "MlKit", StringComparison.OrdinalIgnoreCase))
+        {
+            services.Configure<MlKitOptions>(configuration.GetSection(MlKitOptions.SectionName));
+            services.AddSingleton<IMlKitLabelSource, FileMlKitLabelSource>();
+            services.AddSingleton<IEventExtractor, MlKitEventExtractor>();
+        }
+
         return services;
     }
 }

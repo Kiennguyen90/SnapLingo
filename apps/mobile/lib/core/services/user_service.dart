@@ -24,11 +24,4 @@ class UserService {
     });
     return UserProfile.fromJson(json as Map<String, dynamic>);
   }
-
-  /// No payment provider is wired up yet, so this is the whole "upgrade/downgrade" flow for now
-  /// (see the API's `SetProRequest`/`UserService.SetProAsync`).
-  Future<UserProfile> setPro(bool isPro) async {
-    final json = await _api.put('/api/v1/users/me/pro', body: {'isPro': isPro});
-    return UserProfile.fromJson(json as Map<String, dynamic>);
-  }
 }

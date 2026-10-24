@@ -34,7 +34,8 @@ final class UserProfile extends Equatable {
   final bool researchConsent;
 
   /// Pro learners get a daily lesson allowance instead of the free tier's fixed lesson cap.
-  /// No payment provider is wired up yet — see `UserService.setPro`.
+  /// No payment provider is wired up yet — Pro status is granted directly in the database, not
+  /// from the app, so this is read-only here.
   final bool isPro;
 
   /// Name used in greetings — falls back to the part of the email before `@`.

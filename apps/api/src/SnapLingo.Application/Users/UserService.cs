@@ -58,21 +58,6 @@ public sealed class UserService(IAppDbContext db, IDateTimeProvider clock)
         return ToProfile(user);
     }
 
-    /// <summary>
-    /// Self-serve Pro toggle: no payment provider is wired up yet, so this is the whole "purchase"
-    /// flow for now. A real one would call this from a verified payment webhook/receipt instead of
-    /// directly from the client.
-    /// </summary>
-    public async Task<UserProfile> SetProAsync(Guid userId, bool isPro, CancellationToken ct)
-    {
-        var user = await db.Users.FirstOrDefaultAsync(u => u.Id == userId, ct)
-            ?? throw new NotFoundException("User not found.");
-
-        user.IsPro = isPro;
-        await db.SaveChangesAsync(ct);
-        return ToProfile(user);
-    }
-
     private static UserProfile ToProfile(Domain.Entities.User user) =>
         new(user.Id, user.Email, user.DisplayName, user.CefrLevel, user.NativeLanguage,
             user.PersonLabelingEnabled, user.IsPro, user.ResearchConsentAt, user.CreatedAt);
