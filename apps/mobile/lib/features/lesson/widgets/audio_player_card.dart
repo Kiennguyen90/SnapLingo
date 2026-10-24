@@ -91,7 +91,7 @@ class _AudioPlayerCardState extends State<AudioPlayerCard> {
       child: failed
           ? Row(
               children: [
-                const Padding(padding: EdgeInsets.all(8), child: Icon(Icons.volume_off_rounded, color: AppColors.textSecondary)),
+                Padding(padding: const EdgeInsets.all(8), child: Icon(Icons.volume_off_rounded, color: AppColors.textSecondary)),
                 Expanded(child: Text(widget.errorMessage ?? 'Không phát được audio.', style: text.bodySmall)),
                 if (widget.onRetry != null) TextButton(onPressed: widget.onRetry, child: const Text('Thử lại')),
               ],

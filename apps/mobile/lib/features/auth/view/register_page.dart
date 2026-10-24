@@ -118,7 +118,7 @@ class _RegisterPageState extends State<RegisterPage> {
         FilledButton(
           onPressed: _submitting ? null : _submit,
           child: _submitting
-              ? const SizedBox.square(dimension: 22, child: CircularProgressIndicator(strokeWidth: 2.5, color: Colors.white))
+              ? SizedBox.square(dimension: 22, child: CircularProgressIndicator(strokeWidth: 2.5, color: AppColors.onPrimary))
               : const Text('Tạo tài khoản'),
         ),
       ],
@@ -147,7 +147,7 @@ class CefrPicker extends StatelessWidget {
             showCheckmark: false,
             labelStyle: TextStyle(
               fontWeight: FontWeight.w600,
-              color: value == level ? AppColors.onDark : AppColors.textPrimary,
+              color: value == level ? AppColors.onPrimary : AppColors.textPrimary,
             ),
             selectedColor: AppColors.primary,
             backgroundColor: AppColors.surface,

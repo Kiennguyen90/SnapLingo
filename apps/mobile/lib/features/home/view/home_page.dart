@@ -22,7 +22,8 @@ import '../../review/view/review_page.dart';
 import '../../shell/shell_controller.dart';
 import '../cubit/home_cubit.dart';
 
-/// Screen 02 — greeting, streak, weekly goal, suggested lesson and "continue" list.
+/// Screen 02 — greeting, streak, the "learn from a new photo" CTA, due reviews, weekly goal,
+/// suggested lesson and "continue" list.
 class HomePage extends StatelessWidget {
   const HomePage({super.key});
 
@@ -64,13 +65,13 @@ class _HomeView extends StatelessWidget {
                 children: [
                   _Header(state: state),
                   const SizedBox(height: 20),
-                  _WeeklyGoalCard(done: LearningStats.lessonsThisWeek(state.lessons)),
-                  const SizedBox(height: 14),
                   const _NewLessonCard(),
                   if (state.dueReviews > 0) ...[
                     const SizedBox(height: 14),
                     _ReviewCard(count: state.dueReviews),
                   ],
+                  const SizedBox(height: 14),
+                  _WeeklyGoalCard(done: LearningStats.lessonsThisWeek(state.lessons)),
                   if (state.featured != null) ...[
                     const SizedBox(height: 24),
                     SectionHeader(
@@ -199,6 +200,8 @@ class _StreakPill extends StatelessWidget {
   }
 }
 
+/// Compact progress card. It is deliberately quieter than [_NewLessonCard]: the weekly goal
+/// is status information, while "learn from a new photo" is the one primary action on Home.
 class _WeeklyGoalCard extends StatelessWidget {
   const _WeeklyGoalCard({required this.done});
 
@@ -209,102 +212,128 @@ class _WeeklyGoalCard extends StatelessWidget {
     const goal = AppConfig.weeklyLessonGoal;
     final remaining = (goal - done).clamp(0, goal);
     final text = Theme.of(context).textTheme;
-    final onCard = text.bodySmall?.copyWith(color: AppColors.onDark.withValues(alpha: 0.9));
 
     return Semantics(
       label: 'Mục tiêu tuần này: $done trên $goal bài',
-      child: Material(
-        borderRadius: BorderRadius.circular(20),
-        clipBehavior: Clip.antiAlias,
-        child: Ink(
-          decoration: const BoxDecoration(gradient: AppGradients.primaryCard),
-          child: InkWell(
-            onTap: () => context.read<ShellController>().selectTab(AppTab.stats),
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(16, 16, 12, 16),
-              child: Row(
+      button: true,
+      excludeSemantics: true,
+      child: AppCard(
+        onTap: () => context.read<ShellController>().selectTab(AppTab.stats),
+        padding: const EdgeInsets.fromLTRB(14, 12, 8, 12),
+        child: Row(
+          children: [
+            Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(color: AppColors.primarySoft, shape: BoxShape.circle),
+              child: Icon(Icons.track_changes_rounded, color: AppColors.primary, size: 22),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Container(
-                    width: 46,
-                    height: 46,
-                    decoration: BoxDecoration(color: AppColors.onDark.withValues(alpha: 0.2), shape: BoxShape.circle),
-                    child: const Icon(Icons.track_changes_rounded, color: AppColors.onDark),
+                  Row(
+                    children: [
+                      Expanded(child: Text('Mục tiêu tuần này', style: text.titleSmall)),
+                      Text('${done.clamp(0, goal)}/$goal bài',
+                          style: text.labelLarge?.copyWith(color: AppColors.primary, fontWeight: FontWeight.w700)),
+                    ],
                   ),
-                  const SizedBox(width: 14),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            Expanded(
-                              child: Text('Mục tiêu tuần này',
-                                  style: text.titleMedium?.copyWith(color: AppColors.onDark)),
-                            ),
-                            Text('${done.clamp(0, goal)}/$goal bài', style: text.labelLarge?.copyWith(color: AppColors.onDark)),
-                          ],
-                        ),
-                        const SizedBox(height: 8),
-                        ClipRRect(
-                          borderRadius: BorderRadius.circular(8),
-                          child: LinearProgressIndicator(
-                            value: (done / goal).clamp(0, 1),
-                            minHeight: 7,
-                            color: AppColors.onDark,
-                            backgroundColor: AppColors.onDark.withValues(alpha: 0.25),
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          remaining == 0
-                              ? 'Tuyệt vời! Bạn đã hoàn thành mục tiêu tuần 🎉'
-                              : 'Còn $remaining bài nữa để hoàn thành mục tiêu!',
-                          style: onCard,
-                        ),
-                      ],
+                  const SizedBox(height: 6),
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(6),
+                    child: LinearProgressIndicator(
+                      value: (done / goal).clamp(0, 1),
+                      minHeight: 6,
+                      color: AppColors.primary,
+                      backgroundColor: AppColors.primarySoft,
                     ),
                   ),
-                  const Icon(Icons.chevron_right_rounded, color: AppColors.onDark),
+                  const SizedBox(height: 6),
+                  Text(
+                    remaining == 0
+                        ? 'Tuyệt vời! Bạn đã hoàn thành mục tiêu tuần 🎉'
+                        : 'Còn $remaining bài nữa để hoàn thành mục tiêu',
+                    style: text.bodySmall,
+                  ),
                 ],
               ),
             ),
-          ),
+            Icon(Icons.chevron_right_rounded, color: AppColors.textSecondary),
+          ],
         ),
       ),
     );
   }
 }
 
+/// The single primary call-to-action on Home: placed first under the greeting (top of the
+/// reading path) and the only solid brand-colored block, so it wins the visual hierarchy.
 class _NewLessonCard extends StatelessWidget {
   const _NewLessonCard();
 
   @override
   Widget build(BuildContext context) {
     final text = Theme.of(context).textTheme;
-    return AppCard(
-      onTap: () => _openCapture(context),
-      padding: const EdgeInsets.all(14),
-      child: Row(
-        children: [
-          Container(
-            width: 52,
-            height: 52,
-            decoration: BoxDecoration(color: AppColors.primarySoft, borderRadius: BorderRadius.circular(16)),
-            child: const Icon(Icons.photo_camera_rounded, color: AppColors.primary, size: 28),
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('Học từ ảnh mới', style: text.titleMedium),
-                const SizedBox(height: 2),
-                Text('Chụp hoặc chọn ảnh – AI tạo bài học riêng cho bạn', style: text.bodySmall),
-              ],
+    final on = AppColors.onPrimary;
+    return Semantics(
+      button: true,
+      label: 'Học từ ảnh mới. Chụp hoặc chọn ảnh, AI tạo bài học riêng cho bạn',
+      excludeSemantics: true,
+      child: Material(
+        borderRadius: BorderRadius.circular(20),
+        clipBehavior: Clip.antiAlias,
+        elevation: 3,
+        shadowColor: AppColors.primary.withValues(alpha: 0.35),
+        child: Ink(
+          decoration: BoxDecoration(gradient: AppGradients.cta),
+          child: InkWell(
+            onTap: () => _openCapture(context),
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(18, 18, 18, 18),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('Học từ ảnh mới', style: text.titleLarge?.copyWith(color: on)),
+                        const SizedBox(height: 4),
+                        Text('Chụp hoặc chọn ảnh – AI tạo bài học riêng cho bạn',
+                            style: text.bodyMedium?.copyWith(color: on)),
+                        const SizedBox(height: 14),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                          decoration: BoxDecoration(
+                            color: on.withValues(alpha: 0.16),
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(color: on.withValues(alpha: 0.5)),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.photo_camera_rounded, color: on, size: 18),
+                              const SizedBox(width: 6),
+                              Text('Bắt đầu chụp', style: text.labelLarge?.copyWith(color: on, fontWeight: FontWeight.w700)),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Container(
+                    width: 64,
+                    height: 64,
+                    decoration: BoxDecoration(color: on.withValues(alpha: 0.16), shape: BoxShape.circle),
+                    child: Icon(Icons.add_a_photo_rounded, color: on, size: 32),
+                  ),
+                ],
+              ),
             ),
           ),
-          const Icon(Icons.add_circle_rounded, color: AppColors.primary, size: 32),
-        ],
+        ),
       ),
     );
   }
@@ -375,7 +404,7 @@ class _FeaturedLessonCard extends StatelessWidget {
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Icon(Icons.verified_rounded, size: 14, color: AppColors.success),
+                        Icon(Icons.verified_rounded, size: 14, color: AppColors.success),
                         const SizedBox(width: 4),
                         Text('Đã kiểm chứng', style: text.labelSmall?.copyWith(color: AppColors.success)),
                       ],
@@ -397,11 +426,11 @@ class _FeaturedLessonCard extends StatelessWidget {
                 const SizedBox(height: 12),
                 Row(
                   children: [
-                    const Icon(Icons.menu_book_outlined, size: 18, color: AppColors.primary),
+                    Icon(Icons.menu_book_outlined, size: 18, color: AppColors.primary),
                     const SizedBox(width: 6),
                     Text('${lesson.vocabulary.length} từ vựng', style: text.bodySmall),
                     const SizedBox(width: 18),
-                    const Icon(Icons.signal_cellular_alt_rounded, size: 18, color: AppColors.success),
+                    Icon(Icons.signal_cellular_alt_rounded, size: 18, color: AppColors.success),
                     const SizedBox(width: 6),
                     Text('${difficultyLabel(lesson.cefrLevel)} · ${lesson.cefrLevel}', style: text.bodySmall),
                     const Spacer(),
@@ -463,7 +492,7 @@ class _ContinueRow extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 6),
-          const Icon(Icons.chevron_right_rounded, color: AppColors.primary),
+          Icon(Icons.chevron_right_rounded, color: AppColors.primary),
         ],
       ),
     );

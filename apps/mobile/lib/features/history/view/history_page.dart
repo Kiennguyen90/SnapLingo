@@ -8,21 +8,23 @@ import '../../../core/services/lesson_progress_store.dart';
 import '../../../core/services/lesson_service.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/date_format.dart';
+import '../../../core/utils/text_search.dart';
 import '../../../core/widgets/app_card.dart';
 import '../../../core/widgets/emotion_chip.dart';
 import '../../../core/widgets/remote_photo.dart';
 import '../../../core/widgets/status_views.dart';
 import '../../capture/view/capture_page.dart';
+import '../../lesson/lesson_delete.dart';
 import '../../lesson/lesson_navigation.dart';
 import '../../lesson/view/lesson_overview_page.dart';
 import '../cubit/history_cubit.dart';
 
-/// What tapping a lesson opens — the "Tất cả / Từ vựng / Story / Quiz" chips.
+/// What tapping a lesson opens — the "Tất cả / Từ vựng / Câu chuyện / Kiểm tra" chips.
 enum _OpenMode {
   all('Tất cả', null),
   vocabulary('Từ vựng', LessonStep.vocabulary),
-  story('Story', LessonStep.story),
-  quiz('Quiz', LessonStep.quiz);
+  story('Câu chuyện', LessonStep.story),
+  quiz('Kiểm tra', LessonStep.quiz);
 
   const _OpenMode(this.label, this.step);
 
@@ -57,6 +59,20 @@ class _HistoryView extends StatefulWidget {
 class _HistoryViewState extends State<_HistoryView> {
   _OpenMode _mode = _OpenMode.all;
   bool _editing = false;
+  final _search = TextEditingController();
+  String _query = '';
+
+  @override
+  void dispose() {
+    _search.dispose();
+    super.dispose();
+  }
+
+  void _onQuery(String value) {
+    setState(() => _query = value.trim());
+    // Search covers every lesson, not just the first page that happens to be loaded.
+    if (_query.isNotEmpty) context.read<HistoryCubit>().loadAll();
+  }
 
   Future<void> _open(LessonSummary summary) async {
     if (summary.status != LessonStatus.completed) {
@@ -76,28 +92,9 @@ class _HistoryViewState extends State<_HistoryView> {
     }
   }
 
-  Future<void> _delete(LessonSummary summary) async {
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Xóa bài học?'),
-        content: Text('“${summary.title}” và tiến độ ôn tập của nó sẽ bị xóa.'),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Hủy')),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            style: TextButton.styleFrom(foregroundColor: AppColors.error),
-            child: const Text('Xóa'),
-          ),
-        ],
-      ),
-    );
-    if (ok != true || !mounted) return;
-    try {
-      await context.read<HistoryCubit>().delete(summary.lessonId);
-    } on ApiException catch (e) {
-      if (mounted) showErrorSnack(context, e.message);
-    }
+  void _delete(LessonSummary summary) {
+    context.read<HistoryCubit>().hide(summary.lessonId);
+    deleteLessonWithUndo(context, lessonId: summary.lessonId, title: summary.title);
   }
 
   @override
@@ -136,9 +133,15 @@ class _HistoryViewState extends State<_HistoryView> {
             );
           }
 
+          final visible = _query.isEmpty
+              ? state.lessons
+              : state.lessons
+                  .where((l) => TextSearch.matches(
+                      _query, [l.sceneTitleEn, l.sceneTitleVi, ViDate.month(l.createdAt), ViDate.short(l.createdAt)]))
+                  .toList();
           final rows = <Widget>[];
           String? month;
-          for (final lesson in state.lessons) {
+          for (final lesson in visible) {
             final m = ViDate.month(lesson.createdAt);
             if (m != month) {
               month = m;
@@ -169,11 +172,22 @@ class _HistoryViewState extends State<_HistoryView> {
               child: ListView(
                 padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
                 children: [
+                  _SearchField(controller: _search, onChanged: _onQuery),
+                  const SizedBox(height: 12),
                   _ModeChips(value: _mode, onChanged: (m) => setState(() => _mode = m)),
                   if (_mode != _OpenMode.all)
                     Padding(
                       padding: const EdgeInsets.only(top: 6, left: 4),
                       child: Text('Chạm vào bài để mở ngay phần ${_mode.label}', style: text.bodySmall),
+                    ),
+                  if (_query.isNotEmpty && visible.isEmpty && !state.loadingMore)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 32),
+                      child: EmptyView(
+                        icon: Icons.search_off_rounded,
+                        title: 'Không tìm thấy bài học',
+                        message: 'Không có bài nào khớp “$_query”. Thử tên tiếng Việt, tiếng Anh hoặc tháng (vd. “tháng 10”).',
+                      ),
                     ),
                   ...rows,
                   if (state.loadingMore) const Padding(padding: EdgeInsets.all(16), child: LoadingView()),
@@ -182,6 +196,42 @@ class _HistoryViewState extends State<_HistoryView> {
             ),
           );
         },
+      ),
+    );
+  }
+}
+
+/// Re-finding a lesson by what the learner remembers: its English or Vietnamese title, or
+/// roughly when it was taken.
+class _SearchField extends StatelessWidget {
+  const _SearchField({required this.controller, required this.onChanged});
+
+  final TextEditingController controller;
+  final ValueChanged<String> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return TextField(
+      controller: controller,
+      onChanged: onChanged,
+      textInputAction: TextInputAction.search,
+      decoration: InputDecoration(
+        hintText: 'Tìm bài học theo tên hoặc tháng',
+        prefixIcon: const Icon(Icons.search_rounded),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        suffixIcon: ValueListenableBuilder<TextEditingValue>(
+          valueListenable: controller,
+          builder: (context, value, _) => value.text.isEmpty
+              ? const SizedBox.shrink()
+              : IconButton(
+                  tooltip: 'Xóa tìm kiếm',
+                  icon: const Icon(Icons.close_rounded),
+                  onPressed: () {
+                    controller.clear();
+                    onChanged('');
+                  },
+                ),
+        ),
       ),
     );
   }
@@ -211,7 +261,7 @@ class _ModeChips extends StatelessWidget {
                 backgroundColor: AppColors.surface,
                 side: BorderSide(color: value == m ? AppColors.primary : AppColors.border),
                 labelStyle: TextStyle(
-                  color: value == m ? AppColors.onDark : AppColors.textSecondary,
+                  color: value == m ? AppColors.onPrimary : AppColors.textSecondary,
                   fontWeight: FontWeight.w600,
                 ),
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
@@ -267,7 +317,7 @@ class _LessonRow extends StatelessWidget {
                     if (!completed)
                       Text('Chưa hoàn tất', style: text.labelSmall?.copyWith(color: AppColors.error))
                     else if (progress.isFinished)
-                      const Icon(Icons.check_circle_rounded, size: 18, color: AppColors.success, semanticLabel: 'Đã học xong')
+                      Icon(Icons.check_circle_rounded, size: 18, color: AppColors.success, semanticLabel: 'Đã học xong')
                     else if (progress.isStarted)
                       Text('${(progress.fraction * 100).round()}%', style: text.labelMedium?.copyWith(color: AppColors.primary)),
                   ],
@@ -279,10 +329,10 @@ class _LessonRow extends StatelessWidget {
             IconButton(
               tooltip: 'Xóa ${summary.title}',
               onPressed: onDelete,
-              icon: const Icon(Icons.delete_rounded, color: AppColors.error),
+              icon: Icon(Icons.delete_rounded, color: AppColors.error),
             )
           else
-            const Icon(Icons.chevron_right_rounded, color: AppColors.textSecondary),
+            Icon(Icons.chevron_right_rounded, color: AppColors.textSecondary),
         ],
       ),
     );

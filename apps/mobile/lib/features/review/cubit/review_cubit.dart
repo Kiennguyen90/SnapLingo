@@ -16,6 +16,7 @@ final class ReviewState extends Equatable {
     this.revealed = false,
     this.submitting = false,
     this.reviewedCount = 0,
+    this.canUndo = false,
     this.errorMessage,
   });
 
@@ -25,6 +26,9 @@ final class ReviewState extends Equatable {
   final bool revealed;
   final bool submitting;
   final int reviewedCount;
+
+  /// The last grade is still held locally and can be taken back.
+  final bool canUndo;
   final String? errorMessage;
 
   bool get isFinished => status == ReviewStatus.ready && index >= items.length;
@@ -38,6 +42,7 @@ final class ReviewState extends Equatable {
     bool? revealed,
     bool? submitting,
     int? reviewedCount,
+    bool? canUndo,
     String? errorMessage,
   }) =>
       ReviewState(
@@ -47,14 +52,18 @@ final class ReviewState extends Equatable {
         revealed: revealed ?? this.revealed,
         submitting: submitting ?? this.submitting,
         reviewedCount: reviewedCount ?? this.reviewedCount,
+        canUndo: canUndo ?? this.canUndo,
         errorMessage: errorMessage,
       );
 
   @override
-  List<Object?> get props => [status, items, index, revealed, submitting, reviewedCount, errorMessage];
+  List<Object?> get props => [status, items, index, revealed, submitting, reviewedCount, canUndo, errorMessage];
 }
 
 /// Photo-first flashcards: recall → reveal → self-grade (`POST /reviews/{id}/answer`).
+///
+/// The latest grade is kept on the device until the next card is graded or the session
+/// closes, so "Hoàn tác" can take it back without an API for un-answering.
 class ReviewCubit extends Cubit<ReviewState> {
   ReviewCubit({required ReviewService reviews, required LessonEvents events})
       : _reviews = reviews,
@@ -63,6 +72,8 @@ class ReviewCubit extends Cubit<ReviewState> {
 
   final ReviewService _reviews;
   final LessonEvents _events;
+
+  ({ReviewItem item, ReviewScore score})? _pending;
 
   Future<void> load() async {
     emit(const ReviewState());
@@ -80,16 +91,48 @@ class ReviewCubit extends Cubit<ReviewState> {
     if (item == null || state.submitting) return;
     emit(state.copyWith(submitting: true));
     try {
-      await _reviews.answer(item.vocabularyId, score);
-      emit(state.copyWith(
-        index: state.index + 1,
-        revealed: false,
-        submitting: false,
-        reviewedCount: state.reviewedCount + 1,
-      ));
-      if (state.isFinished) _events.notifyChanged(); // Home's due-count badge
+      await _commitPending();
     } on ApiException catch (e) {
       emit(state.copyWith(submitting: false, errorMessage: e.message));
+      return;
     }
+    _pending = (item: item, score: score);
+    emit(state.copyWith(
+      index: state.index + 1,
+      revealed: false,
+      submitting: false,
+      reviewedCount: state.reviewedCount + 1,
+      canUndo: true,
+    ));
+  }
+
+  /// Back to the previous card, meaning shown, so it can be graded again.
+  void undo() {
+    if (_pending == null || state.submitting) return;
+    _pending = null;
+    emit(state.copyWith(
+      index: state.index - 1,
+      revealed: true,
+      reviewedCount: state.reviewedCount - 1,
+      canUndo: false,
+    ));
+  }
+
+  Future<void> _commitPending() async {
+    final pending = _pending;
+    if (pending == null) return;
+    await _reviews.answer(pending.item.vocabularyId, pending.score);
+    _pending = null;
+  }
+
+  @override
+  Future<void> close() async {
+    try {
+      await _commitPending();
+    } on ApiException {
+      // Best effort: an unsent grade only means the word comes back in the next session.
+    }
+    if (state.reviewedCount > 0) _events.notifyChanged(); // Home's due-count badge
+    return super.close();
   }
 }

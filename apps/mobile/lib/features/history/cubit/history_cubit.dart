@@ -49,14 +49,12 @@ class HistoryCubit extends Cubit<HistoryState> {
   HistoryCubit({required LessonService lessons, required LessonProgressStore progress, required LessonEvents events})
       : _lessons = lessons,
         _progress = progress,
-        _events = events,
         super(const HistoryState()) {
     _sub = events.stream.listen((_) => load(silent: true));
   }
 
   final LessonService _lessons;
   final LessonProgressStore _progress;
-  final LessonEvents _events;
   late final StreamSubscription<void> _sub;
 
   static const _pageSize = 20;
@@ -88,13 +86,20 @@ class HistoryCubit extends Cubit<HistoryState> {
     }
   }
 
-  /// Throws [ApiException] so the page can report it.
-  Future<void> delete(String lessonId) async {
-    await _lessons.delete(lessonId);
-    await _progress.remove(lessonId);
-    emit(state.copyWith(lessons: state.lessons.where((l) => l.lessonId != lessonId).toList()));
-    _events.notifyChanged();
+  /// Pages through the rest of the history (used by search).
+  Future<void> loadAll() async {
+    while (state.hasMore && !isClosed) {
+      if (state.loadingMore) return;
+      final before = state.lessons.length;
+      await loadMore();
+      if (state.lessons.length == before) return; // failed or empty page
+    }
   }
+
+  /// Drops the row right away; the delete itself (with undo) goes through
+  /// `deleteLessonWithUndo`, whose change event then reloads the list.
+  void hide(String lessonId) =>
+      emit(state.copyWith(lessons: state.lessons.where((l) => l.lessonId != lessonId).toList()));
 
   @override
   Future<void> close() {

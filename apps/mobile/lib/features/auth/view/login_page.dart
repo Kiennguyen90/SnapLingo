@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../core/network/api_exception.dart';
+import '../../../core/theme/app_colors.dart';
 import '../cubit/auth_cubit.dart';
 import 'auth_form_scaffold.dart';
 import 'register_page.dart';
@@ -92,7 +93,7 @@ class _LoginPageState extends State<LoginPage> {
         FilledButton(
           onPressed: _submitting ? null : _submit,
           child: _submitting
-              ? const SizedBox.square(dimension: 22, child: CircularProgressIndicator(strokeWidth: 2.5, color: Colors.white))
+              ? SizedBox.square(dimension: 22, child: CircularProgressIndicator(strokeWidth: 2.5, color: AppColors.onPrimary))
               : const Text('Đăng nhập'),
         ),
         const SizedBox(height: 8),

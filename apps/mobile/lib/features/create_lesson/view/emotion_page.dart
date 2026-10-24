@@ -171,13 +171,13 @@ class _EmotionCard extends StatelessWidget {
                   ),
                 ),
                 if (selected)
-                  const Positioned(
+                  Positioned(
                     top: 8,
                     right: 8,
                     child: CircleAvatar(
                       radius: 12,
                       backgroundColor: AppColors.primary,
-                      child: Icon(Icons.check_rounded, size: 16, color: AppColors.onDark),
+                      child: Icon(Icons.check_rounded, size: 16, color: AppColors.onPrimary),
                     ),
                   )
                 else if (isCurrent)

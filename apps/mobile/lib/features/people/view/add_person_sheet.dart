@@ -114,7 +114,7 @@ class _AddPersonSheetState extends State<_AddPersonSheet> {
                       showCheckmark: false,
                       onSelected: (_) => setState(() => _relation = r.key),
                       selectedColor: AppColors.primary,
-                      labelStyle: TextStyle(color: _relation == r.key ? AppColors.onDark : AppColors.textPrimary),
+                      labelStyle: TextStyle(color: _relation == r.key ? AppColors.onPrimary : AppColors.textPrimary),
                     ),
                 ],
               ),

@@ -23,7 +23,7 @@ class ErrorView extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.cloud_off_rounded, size: 48, color: AppColors.textTertiary),
+            Icon(Icons.cloud_off_rounded, size: 48, color: AppColors.textTertiary),
             const SizedBox(height: 12),
             Text(message, textAlign: TextAlign.center, style: Theme.of(context).textTheme.bodyMedium),
             if (onRetry != null) ...[
@@ -61,7 +61,7 @@ class EmptyView extends StatelessWidget {
           children: [
             Container(
               padding: const EdgeInsets.all(20),
-              decoration: const BoxDecoration(color: AppColors.primarySoft, shape: BoxShape.circle),
+              decoration: BoxDecoration(color: AppColors.primarySoft, shape: BoxShape.circle),
               child: Icon(icon, size: 40, color: AppColors.primary),
             ),
             const SizedBox(height: 16),
@@ -76,8 +76,44 @@ class EmptyView extends StatelessWidget {
   }
 }
 
-void showErrorSnack(BuildContext context, String message) {
-  ScaffoldMessenger.of(context)
+// Inverse surface: dark bar in light mode, raised light-on-dark bar in dark mode.
+SnackBar _snack(String message, {SnackBarAction? action, Duration duration = const Duration(seconds: 4)}) {
+  final dark = AppColors.isDark;
+  return SnackBar(
+    content: Text(message, style: TextStyle(color: dark ? AppColors.textPrimary : AppColors.surface)),
+    backgroundColor: dark ? AppColors.surfaceMuted : AppColors.textPrimary,
+    action: action,
+    duration: duration,
+    persist: false,
+  );
+}
+
+void showErrorSnack(BuildContext context, String message) => showErrorOn(ScaffoldMessenger.of(context), message);
+
+/// For callbacks that may run after the page that started them is gone.
+void showErrorOn(ScaffoldMessengerState messenger, String message) {
+  messenger
     ..hideCurrentSnackBar()
-    ..showSnackBar(SnackBar(content: Text(message), backgroundColor: AppColors.textPrimary));
+    ..showSnackBar(_snack(message));
+}
+
+/// "Đã xóa … · Hoàn tác": lets the learner reverse an action instead of confirming it up front
+/// (Nielsen #3 user control and freedom).
+void showUndoSnack(
+  ScaffoldMessengerState messenger,
+  String message, {
+  required VoidCallback onUndo,
+  required Duration duration,
+}) {
+  messenger
+    ..hideCurrentSnackBar()
+    ..showSnackBar(_snack(
+      message,
+      duration: duration,
+      action: SnackBarAction(
+        label: 'Hoàn tác',
+        textColor: AppColors.isDark ? AppColors.primary : AppColors.primaryBorder,
+        onPressed: onUndo,
+      ),
+    ));
 }

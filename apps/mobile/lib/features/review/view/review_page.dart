@@ -44,6 +44,12 @@ class _ReviewView extends StatelessWidget {
           appBar: AppBar(
             title: const Text('Ôn tập'),
             actions: [
+              if (state.canUndo)
+                TextButton.icon(
+                  onPressed: context.read<ReviewCubit>().undo,
+                  icon: const Icon(Icons.undo_rounded, size: 20),
+                  label: const Text('Hoàn tác'),
+                ),
               if (state.status == ReviewStatus.ready && !state.isFinished)
                 Padding(
                   padding: const EdgeInsets.only(right: 16),
@@ -228,20 +234,20 @@ class _ScoreButton extends StatelessWidget {
   final bool enabled;
   final VoidCallback onTap;
 
-  static const _colors = {
-    ReviewScore.forgot: AppColors.error,
-    ReviewScore.hard: AppColors.streak,
-    ReviewScore.good: AppColors.success,
-    ReviewScore.easy: AppColors.primary,
-  };
+  static Color _colorOf(ReviewScore score) => switch (score) {
+        ReviewScore.forgot => AppColors.error,
+        ReviewScore.hard => AppColors.streak,
+        ReviewScore.good => AppColors.success,
+        ReviewScore.easy => AppColors.primary,
+      };
 
   @override
   Widget build(BuildContext context) {
-    final color = _colors[score]!;
+    final color = _colorOf(score);
     final text = Theme.of(context).textTheme;
     return Semantics(
       button: true,
-      label: '${score.labelEn}, ${score.labelVi}',
+      label: '${score.labelVi}, ${score.labelEn}',
       excludeSemantics: true,
       child: OutlinedButton(
         onPressed: enabled ? onTap : null,
@@ -255,8 +261,8 @@ class _ScoreButton extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text(score.labelEn, style: text.titleSmall?.copyWith(color: color, fontWeight: FontWeight.w700)),
-            Text(score.labelVi, style: text.labelSmall?.copyWith(color: AppColors.textSecondary)),
+            Text(score.labelVi, style: text.titleSmall?.copyWith(color: color, fontWeight: FontWeight.w700)),
+            Text(score.labelEn, style: text.labelSmall?.copyWith(color: AppColors.textSecondary)),
           ],
         ),
       ),

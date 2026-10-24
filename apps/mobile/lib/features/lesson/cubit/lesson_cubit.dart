@@ -70,13 +70,6 @@ class LessonCubit extends Cubit<LessonState> {
     _events.notifyChanged();
   }
 
-  /// Throws [ApiException] so the page can show the reason.
-  Future<void> delete() async {
-    await _lessons.delete(lessonId);
-    await _progress.remove(lessonId);
-    _events.notifyChanged();
-  }
-
   @override
   Future<void> close() {
     _sub.cancel();

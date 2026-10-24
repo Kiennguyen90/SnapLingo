@@ -229,7 +229,7 @@ class _WordView extends StatelessWidget {
                           children: [
                             Row(
                               children: [
-                                const Icon(Icons.format_quote_rounded, size: 18, color: AppColors.primary),
+                                Icon(Icons.format_quote_rounded, size: 18, color: AppColors.primary),
                                 const SizedBox(width: 6),
                                 Text('Câu ví dụ', style: text.labelLarge?.copyWith(color: AppColors.primary)),
                               ],
@@ -241,7 +241,7 @@ class _WordView extends StatelessWidget {
                                 children: highlightWords(
                                   item.exampleEn!,
                                   [item.word],
-                                  highlight: const TextStyle(fontWeight: FontWeight.w700, color: AppColors.primaryDark),
+                                  highlight: TextStyle(fontWeight: FontWeight.w700, color: AppColors.primaryDark),
                                 ),
                               ),
                             ),

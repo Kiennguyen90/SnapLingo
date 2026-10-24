@@ -92,14 +92,14 @@ class _PeoplePageState extends State<PeoplePage> {
                     child: ListTile(
                       leading: CircleAvatar(
                         backgroundColor: AppColors.primarySoft,
-                        child: Text(p.label.characters.first, style: const TextStyle(color: AppColors.primary)),
+                        child: Text(p.label.characters.first, style: TextStyle(color: AppColors.primary)),
                       ),
                       title: Text(p.label),
                       subtitle: Text('${p.photoCount} ảnh'),
                       trailing: IconButton(
                         tooltip: 'Xóa ${p.label}',
                         onPressed: () => _delete(p),
-                        icon: const Icon(Icons.delete_outline_rounded, color: AppColors.error),
+                        icon: Icon(Icons.delete_outline_rounded, color: AppColors.error),
                       ),
                     ),
                   ),

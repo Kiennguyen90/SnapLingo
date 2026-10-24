@@ -43,8 +43,8 @@ class AccessibilityPage extends StatelessWidget {
           ),
           _ToggleCard(
             icon: Icons.subject_rounded,
-            title: 'Quiz tương đương bằng text',
-            subtitle: 'Phiên bản quiz chỉ có văn bản (không cần audio)',
+            title: 'Bài kiểm tra chỉ dùng chữ',
+            subtitle: 'Câu hỏi và đáp án chỉ ở dạng chữ, không cần nghe audio',
             value: s.textOnlyQuiz,
             onChanged: cubit.setTextOnlyQuiz,
           ),
@@ -84,6 +84,50 @@ class AccessibilityPage extends StatelessWidget {
                     ),
                     const ExcludeSemantics(child: Text('A', style: TextStyle(fontSize: 26, fontWeight: FontWeight.w600))),
                   ],
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 12),
+          AppCard(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    const _IconBox(icon: Icons.contrast_rounded),
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('Giao diện', style: text.titleMedium),
+                          Text('Chế độ tối giảm chói khi học buổi tối hoặc khi mắt nhạy sáng', style: text.bodySmall),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                SizedBox(
+                  width: double.infinity,
+                  child: SegmentedButton<AppearanceMode>(
+                    segments: [
+                      for (final m in AppearanceMode.values)
+                        ButtonSegment(
+                          value: m,
+                          label: Text(m.label),
+                          icon: Icon(switch (m) {
+                            AppearanceMode.system => Icons.brightness_auto_rounded,
+                            AppearanceMode.light => Icons.light_mode_rounded,
+                            AppearanceMode.dark => Icons.dark_mode_rounded,
+                          }),
+                        ),
+                    ],
+                    selected: {s.appearance},
+                    showSelectedIcon: false,
+                    onSelectionChanged: (v) => cubit.setAppearance(v.first),
+                  ),
                 ),
               ],
             ),
