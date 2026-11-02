@@ -97,7 +97,7 @@ class _AppTutorialPageState extends State<AppTutorialPage> {
                   maintainState: true,
                   child: TextButton(
                     onPressed: _finish,
-                    child: const Text('Bỏ qua', style: TextStyle(color: AppColors.textSecondary)),
+                    child: Text('Bỏ qua', style: TextStyle(color: AppColors.textSecondary)),
                   ),
                 ),
               ),
@@ -197,7 +197,7 @@ class _StepView extends StatelessWidget {
                             shape: BoxShape.circle,
                             border: Border.all(color: AppColors.surface, width: 3),
                           ),
-                          child: Icon(step.icon, size: 20, color: AppColors.onDark),
+                          child: Icon(step.icon, size: 20, color: AppColors.onPrimary),
                         ),
                       ),
                     ],

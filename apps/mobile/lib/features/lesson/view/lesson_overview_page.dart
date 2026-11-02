@@ -22,6 +22,7 @@ import '../../create_lesson/view/generating_page.dart';
 import '../widgets/grounding_widgets.dart';
 import '../widgets/share_lesson_button.dart';
 import '../cubit/lesson_cubit.dart';
+import '../lesson_delete.dart';
 import '../lesson_navigation.dart';
 
 /// Screen 06 — scene summary, key vocabulary and the entry into the lesson steps.
@@ -63,28 +64,8 @@ class _OverviewView extends StatelessWidget {
           AppConfig.emotionSelection ? EmotionPage.route(source) : GeneratingPage.route(source),
         );
       case _MenuAction.delete:
-        final confirmed = await showDialog<bool>(
-          context: context,
-          builder: (context) => AlertDialog(
-            title: const Text('Xóa bài học?'),
-            content: const Text('Bài học và tiến độ ôn tập của các từ trong bài sẽ bị xóa. Không thể hoàn tác.'),
-            actions: [
-              TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Hủy')),
-              TextButton(
-                onPressed: () => Navigator.pop(context, true),
-                style: TextButton.styleFrom(foregroundColor: AppColors.error),
-                child: const Text('Xóa'),
-              ),
-            ],
-          ),
-        );
-        if (confirmed != true || !context.mounted) return;
-        try {
-          await context.read<LessonCubit>().delete();
-          if (context.mounted) Navigator.of(context).pop();
-        } on ApiException catch (e) {
-          if (context.mounted) showErrorSnack(context, e.message);
-        }
+        deleteLessonWithUndo(context, lessonId: lesson.lessonId, title: lesson.titleEn);
+        Navigator.of(context).pop();
     }
   }
 
@@ -103,8 +84,8 @@ class _OverviewView extends StatelessWidget {
                 PopupMenuButton<_MenuAction>(
                   tooltip: 'Tùy chọn',
                   onSelected: (a) => _onMenu(context, a, lesson),
-                  itemBuilder: (_) => const [
-                    PopupMenuItem(
+                  itemBuilder: (_) => [
+                    const PopupMenuItem(
                       value: _MenuAction.regenerate,
                       child: ListTile(leading: Icon(Icons.autorenew_rounded), title: Text('Viết lại câu chuyện')),
                     ),
@@ -222,7 +203,7 @@ class _OverviewBody extends StatelessWidget {
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            const Icon(Icons.bookmark_rounded, size: 18, color: AppColors.primary),
+                            Icon(Icons.bookmark_rounded, size: 18, color: AppColors.primary),
                             const SizedBox(width: 6),
                             Text('Đã lưu tất cả từ vào ôn tập', style: text.bodySmall),
                           ],
@@ -323,7 +304,7 @@ class _SceneCard extends StatelessWidget {
               ],
             ),
           ),
-          const Icon(Icons.chevron_right_rounded, color: AppColors.textSecondary),
+          Icon(Icons.chevron_right_rounded, color: AppColors.textSecondary),
         ],
       ),
     );
@@ -341,7 +322,7 @@ class _StepsRow extends StatelessWidget {
     final items = [
       (LessonStep.vocabulary, 'Từ vựng', Icons.menu_book_rounded, '${lesson.vocabulary.length} từ'),
       (LessonStep.story, 'Câu chuyện', Icons.auto_stories_rounded, 'Nghe & đọc'),
-      (LessonStep.quiz, 'Quiz', Icons.quiz_rounded, '${lesson.quiz.length} câu'),
+      (LessonStep.quiz, 'Kiểm tra', Icons.quiz_rounded, '${lesson.quiz.length} câu'),
     ];
     return Row(
       children: [

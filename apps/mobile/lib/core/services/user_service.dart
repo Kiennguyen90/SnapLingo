@@ -9,6 +9,9 @@ class UserService {
   Future<UserProfile> me() async =>
       UserProfile.fromJson(await _api.get('/api/v1/users/me') as Map<String, dynamic>);
 
+  /// Permanently deletes the account and all its server-side data.
+  Future<void> deleteAccount() => _api.delete('/api/v1/users/me');
+
   /// Only the non-null fields are changed (the endpoint is a partial PATCH).
   Future<UserProfile> update({
     String? displayName,
@@ -22,13 +25,6 @@ class UserService {
       'personLabelingEnabled': ?personLabelingEnabled,
       'researchConsent': ?researchConsent,
     });
-    return UserProfile.fromJson(json as Map<String, dynamic>);
-  }
-
-  /// No payment provider is wired up yet, so this is the whole "upgrade/downgrade" flow for now
-  /// (see the API's `SetProRequest`/`UserService.SetProAsync`).
-  Future<UserProfile> setPro(bool isPro) async {
-    final json = await _api.put('/api/v1/users/me/pro', body: {'isPro': isPro});
     return UserProfile.fromJson(json as Map<String, dynamic>);
   }
 }

@@ -1,0 +1,4 @@
+storePassword=<mat-khau-keystore>
+keyPassword=<mat-khau-key>
+keyAlias=upload
+storeFile=C:/Users/Kien/snaplingo-keys/upload-keystore.jks

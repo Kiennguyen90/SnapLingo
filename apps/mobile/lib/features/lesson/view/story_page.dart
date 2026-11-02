@@ -132,13 +132,13 @@ class _StoryPageState extends State<StoryPage> {
               Text(sentence.vi, style: text.bodyMedium?.copyWith(color: AppColors.textSecondary)),
               const SizedBox(height: 14),
               if (sentence.label == ClaimLabel.inferred)
-                const _Callout(
+                _Callout(
                   icon: Icons.lightbulb_outline_rounded,
                   color: AppColors.warning,
                   message: 'Đây là suy luận hợp lý, không phải dữ kiện trực tiếp – vì vậy câu được rào đón bằng “It seems / maybe”.',
                 ),
               if (sentence.sources.isEmpty && sentence.label != ClaimLabel.inferred)
-                const _Callout(
+                _Callout(
                   icon: Icons.info_outline_rounded,
                   color: AppColors.textSecondary,
                   message: 'Bài học này được tạo trước khi có tính năng kiểm chứng.',
@@ -272,7 +272,7 @@ class _StoryPageState extends State<StoryPage> {
                                   children: highlightWords(
                                     sentence.en,
                                     _lesson.vocabulary.map((v) => v.word),
-                                    highlight: const TextStyle(
+                                    highlight: TextStyle(
                                       color: AppColors.primaryDark,
                                       fontWeight: FontWeight.w700,
                                       decoration: TextDecoration.underline,
@@ -280,7 +280,7 @@ class _StoryPageState extends State<StoryPage> {
                                     ),
                                     onTapWord: _showWord,
                                     activeRange: _spokenIn(i, story.sentences),
-                                    activeStyle: const TextStyle(backgroundColor: AppColors.warningSoft),
+                                    activeStyle: TextStyle(backgroundColor: AppColors.warningSoft),
                                   ),
                                 ),
                               ),
@@ -300,7 +300,7 @@ class _StoryPageState extends State<StoryPage> {
                     const SizedBox(height: 8),
                     Row(
                       children: [
-                        const Icon(Icons.lightbulb_outline_rounded, size: 18, color: AppColors.primary),
+                        Icon(Icons.lightbulb_outline_rounded, size: 18, color: AppColors.primary),
                         const SizedBox(width: 6),
                         Expanded(
                           child: Text('Từ mới được tô đậm – chạm để xem nghĩa. Chạm biểu tượng đầu câu để xem vì sao có câu đó.',
@@ -350,7 +350,7 @@ class _StoryPageState extends State<StoryPage> {
                   if (context.mounted) openLessonStep(context, _lesson, LessonStep.quiz);
                 },
                 icon: const Icon(Icons.quiz_outlined),
-                label: const Text('Làm quiz'),
+                label: const Text('Làm bài kiểm tra'),
               ),
             ),
           ],
@@ -540,7 +540,7 @@ class _PatternsCard extends StatelessWidget {
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Icon(Icons.format_quote_rounded, size: 16, color: AppColors.primary),
+                Icon(Icons.format_quote_rounded, size: 16, color: AppColors.primary),
                 const SizedBox(width: 4),
                 Expanded(
                   child: Column(
@@ -638,7 +638,7 @@ class _WhoIsThisCardState extends State<_WhoIsThisCard> {
         children: [
           Row(
             children: [
-              const Icon(Icons.person_search_rounded, color: AppColors.primary),
+              Icon(Icons.person_search_rounded, color: AppColors.primary),
               const SizedBox(width: 10),
               Expanded(child: Text('Người này là ai?', style: text.titleMedium)),
             ],

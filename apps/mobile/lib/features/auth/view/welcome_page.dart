@@ -68,7 +68,7 @@ class _WelcomePageState extends State<WelcomePage> {
 
     return Scaffold(
       body: DecoratedBox(
-        decoration: const BoxDecoration(gradient: AppGradients.welcomeBackground),
+        decoration: BoxDecoration(gradient: AppGradients.welcomeBackground),
         child: SafeArea(
           child: Column(
             children: [
@@ -85,7 +85,7 @@ class _WelcomePageState extends State<WelcomePage> {
                       duration: const Duration(milliseconds: 400),
                       curve: Curves.easeOutCubic,
                     ),
-                    child: const Text('Bỏ qua', style: TextStyle(color: AppColors.textSecondary)),
+                    child: Text('Bỏ qua', style: TextStyle(color: AppColors.textSecondary)),
                   ),
                 ),
               ),
@@ -262,7 +262,7 @@ class _IconArt extends StatelessWidget {
       child: Container(
         width: 170,
         height: 170,
-        decoration: const BoxDecoration(color: AppColors.primarySoft, shape: BoxShape.circle),
+        decoration: BoxDecoration(color: AppColors.primarySoft, shape: BoxShape.circle),
         child: Icon(icon, size: 84, color: AppColors.primary),
       ),
     );

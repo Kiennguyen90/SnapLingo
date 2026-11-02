@@ -104,6 +104,11 @@ class AuthService {
         // Ignored.
       }
     }
+    await clearSession();
+  }
+
+  /// Drops the local session without telling the server — used after the account itself is gone.
+  Future<void> clearSession() async {
     _api.accessToken = null;
     await _storage.delete(key: _tokenKey);
     await _storage.delete(key: _expiresKey);

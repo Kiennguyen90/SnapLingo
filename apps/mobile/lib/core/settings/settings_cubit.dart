@@ -1,4 +1,5 @@
 import 'package:equatable/equatable.dart';
+import 'package:flutter/material.dart' show ThemeMode;
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -18,6 +19,18 @@ enum SpeechRate {
   final double playbackSpeed;
 }
 
+/// Light/dark appearance; [system] follows the phone's setting.
+enum AppearanceMode {
+  system('Hệ thống', ThemeMode.system),
+  light('Sáng', ThemeMode.light),
+  dark('Tối', ThemeMode.dark);
+
+  const AppearanceMode(this.label, this.themeMode);
+
+  final String label;
+  final ThemeMode themeMode;
+}
+
 /// Learner preferences from the Settings and Accessibility screens. Device-local by
 /// design: they describe how *this* device should present lessons.
 final class AppSettings extends Equatable {
@@ -30,6 +43,7 @@ final class AppSettings extends Equatable {
     this.speechRate = SpeechRate.normal,
     this.onboardingSeen = false,
     this.tutorialSeen = false,
+    this.appearance = AppearanceMode.system,
   });
 
   final bool transcriptByDefault;
@@ -44,6 +58,8 @@ final class AppSettings extends Equatable {
   /// on this device, distinct from [onboardingSeen] (the pre-login welcome carousel).
   final bool tutorialSeen;
 
+  final AppearanceMode appearance;
+
   AppSettings copyWith({
     bool? transcriptByDefault,
     bool? highlightSpokenWord,
@@ -53,6 +69,7 @@ final class AppSettings extends Equatable {
     SpeechRate? speechRate,
     bool? onboardingSeen,
     bool? tutorialSeen,
+    AppearanceMode? appearance,
   }) =>
       AppSettings(
         transcriptByDefault: transcriptByDefault ?? this.transcriptByDefault,
@@ -63,6 +80,7 @@ final class AppSettings extends Equatable {
         speechRate: speechRate ?? this.speechRate,
         onboardingSeen: onboardingSeen ?? this.onboardingSeen,
         tutorialSeen: tutorialSeen ?? this.tutorialSeen,
+        appearance: appearance ?? this.appearance,
       );
 
   @override
@@ -75,6 +93,7 @@ final class AppSettings extends Equatable {
         speechRate,
         onboardingSeen,
         tutorialSeen,
+        appearance,
       ];
 }
 
@@ -100,6 +119,10 @@ class SettingsCubit extends Cubit<AppSettings> {
       ),
       onboardingSeen: p.getBool('settings.onboardingSeen') ?? d.onboardingSeen,
       tutorialSeen: p.getBool('settings.tutorialSeen') ?? d.tutorialSeen,
+      appearance: AppearanceMode.values.firstWhere(
+        (m) => m.name == p.getString('settings.appearance'),
+        orElse: () => d.appearance,
+      ),
     );
   }
 
@@ -132,6 +155,11 @@ class SettingsCubit extends Cubit<AppSettings> {
   void setSpeechRate(SpeechRate v) {
     _prefs.setString('settings.speechRate', v.name);
     emit(state.copyWith(speechRate: v));
+  }
+
+  void setAppearance(AppearanceMode v) {
+    _prefs.setString('settings.appearance', v.name);
+    emit(state.copyWith(appearance: v));
   }
 
   void markOnboardingSeen() {

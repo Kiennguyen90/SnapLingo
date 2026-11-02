@@ -81,7 +81,7 @@ class _GeneratingView extends StatelessWidget {
             actions: [
               TextButton(
                 onPressed: () => Navigator.of(context).pop(),
-                child: const Text('Hủy', style: TextStyle(color: AppColors.textSecondary)),
+                child: Text('Hủy', style: TextStyle(color: AppColors.textSecondary)),
               ),
               const SizedBox(width: 8),
             ],
@@ -184,15 +184,15 @@ class _StepRow extends StatelessWidget {
           };
 
     final trailing = failed
-        ? const Icon(Icons.error_rounded, color: AppColors.error)
+        ? Icon(Icons.error_rounded, color: AppColors.error)
         : switch (status) {
-            StepStatus.done => const Icon(Icons.check_circle_rounded, color: AppColors.success),
+            StepStatus.done => Icon(Icons.check_circle_rounded, color: AppColors.success),
             StepStatus.active => const SizedBox.square(
                 dimension: 20,
                 child: CircularProgressIndicator(strokeWidth: 2.5),
               ),
-            StepStatus.skipped => const Icon(Icons.schedule_rounded, color: AppColors.warning),
-            StepStatus.pending => const Icon(Icons.radio_button_unchecked_rounded, color: AppColors.border),
+            StepStatus.skipped => Icon(Icons.schedule_rounded, color: AppColors.warning),
+            StepStatus.pending => Icon(Icons.radio_button_unchecked_rounded, color: AppColors.border),
           };
 
     return Semantics(
@@ -254,11 +254,11 @@ class _Illustration extends StatelessWidget {
             Container(
               width: 170,
               height: 170,
-              decoration: const BoxDecoration(color: AppColors.primarySoft, shape: BoxShape.circle),
+              decoration: BoxDecoration(color: AppColors.primarySoft, shape: BoxShape.circle),
             ),
-            const Icon(Icons.smart_toy_rounded, size: 104, color: AppColors.primary),
-            const Positioned(left: 60, top: 18, child: Icon(Icons.auto_awesome, color: AppColors.primary, size: 20)),
-            const Positioned(left: 90, bottom: 16, child: Icon(Icons.auto_awesome, color: AppColors.primaryBorder, size: 16)),
+            Icon(Icons.smart_toy_rounded, size: 104, color: AppColors.primary),
+            Positioned(left: 60, top: 18, child: Icon(Icons.auto_awesome, color: AppColors.primary, size: 20)),
+            Positioned(left: 90, bottom: 16, child: Icon(Icons.auto_awesome, color: AppColors.primaryBorder, size: 16)),
             Positioned(
               right: 36,
               top: 8,

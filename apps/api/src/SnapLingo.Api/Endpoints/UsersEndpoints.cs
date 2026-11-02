@@ -31,18 +31,12 @@ public static class UsersEndpoints
         })
         .Produces<UserResponse>();
 
-        // No payment provider yet (see SetProRequest): this is a stand-in "upgrade/downgrade"
-        // action until a real purchase flow sets IsPro from a verified receipt instead.
-        group.MapPut("/me/pro", async (
-            SetProRequest request,
-            UserService userService,
-            ICurrentUserService currentUser,
-            CancellationToken ct) =>
+        group.MapDelete("/me", async (UserService userService, ICurrentUserService currentUser, CancellationToken ct) =>
         {
-            var profile = await userService.SetProAsync(currentUser.UserId, request.IsPro, ct);
-            return Results.Ok(ToResponse(profile));
+            await userService.DeleteAccountAsync(currentUser.UserId, ct);
+            return Results.NoContent();
         })
-        .Produces<UserResponse>();
+        .Produces(StatusCodes.Status204NoContent);
 
         return app;
     }

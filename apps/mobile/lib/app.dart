@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:provider/provider.dart';
@@ -16,6 +17,7 @@ import 'core/services/review_service.dart';
 import 'core/services/speech_service.dart';
 import 'core/services/user_service.dart';
 import 'core/settings/settings_cubit.dart';
+import 'core/theme/app_colors.dart';
 import 'core/theme/app_theme.dart';
 import 'features/auth/cubit/auth_cubit.dart';
 import 'features/auth/view/login_page.dart';
@@ -74,12 +76,27 @@ class _AppView extends StatelessWidget {
   Widget build(BuildContext context) {
     final shell = context.read<ShellController>();
     final textScale = context.select((SettingsCubit c) => c.state.textScale);
+    final appearance = context.select((SettingsCubit c) => c.state.appearance);
+    final dark = switch (appearance) {
+      AppearanceMode.dark => true,
+      AppearanceMode.light => false,
+      AppearanceMode.system => MediaQuery.platformBrightnessOf(context) == Brightness.dark,
+    };
+    final palette = dark ? AppPalette.dark : AppPalette.light;
+    if (!identical(AppColors.palette, palette)) {
+      AppColors.palette = palette;
+      // Widgets read AppColors directly rather than through Theme, so after the switch every
+      // element is marked dirty once; navigation stacks and page state are kept.
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (context.mounted) _rebuildAll(context as Element);
+      });
+    }
 
     return MaterialApp(
       title: 'SnapLingo',
       debugShowCheckedModeBanner: false,
       navigatorKey: shell.rootNavigatorKey,
-      theme: AppTheme.light(),
+      theme: AppTheme.build(palette),
       locale: const Locale('vi'),
       supportedLocales: const [Locale('vi'), Locale('en')],
       localizationsDelegates: GlobalMaterialLocalizations.delegates,
@@ -87,14 +104,26 @@ class _AppView extends StatelessWidget {
       builder: (context, child) {
         final media = MediaQuery.of(context);
         final system = media.textScaler.scale(1);
-        return MediaQuery(
-          data: media.copyWith(textScaler: TextScaler.linear((system * textScale).clamp(0.8, 2.0))),
-          child: child!,
+        return AnnotatedRegion<SystemUiOverlayStyle>(
+          value: dark ? SystemUiOverlayStyle.light : SystemUiOverlayStyle.dark,
+          child: MediaQuery(
+            data: media.copyWith(textScaler: TextScaler.linear((system * textScale).clamp(0.8, 2.0))),
+            child: child!,
+          ),
         );
       },
       home: const _AuthGate(),
     );
   }
+}
+
+void _rebuildAll(Element root) {
+  void visit(Element e) {
+    e.markNeedsBuild();
+    e.visitChildren(visit);
+  }
+
+  root.visitChildren(visit);
 }
 
 class _AuthGate extends StatelessWidget {

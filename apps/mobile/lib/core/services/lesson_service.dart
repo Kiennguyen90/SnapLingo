@@ -1,6 +1,9 @@
+import 'dart:async';
+
 import '../models/emotion.dart';
 import '../models/lesson.dart';
 import '../network/api_client.dart';
+import '../network/api_exception.dart';
 
 class LessonService {
   LessonService(this._api);
@@ -11,6 +14,16 @@ class LessonService {
   /// so details are cached for the app session. Audio URLs are the only exception —
   /// they are signed and short-lived, so [generateAudio] always goes to the network.
   final Map<String, Lesson> _cache = {};
+
+  /// How long a deleted lesson can still be restored with "Hoàn tác".
+  static const undoWindow = Duration(seconds: 6);
+
+  /// Lessons the learner deleted but can still restore: hidden from [list] at once and only
+  /// deleted on the server when [undoWindow] passes. If the app is killed meanwhile the
+  /// lesson simply survives — the safe failure for a destructive action.
+  final Map<String, Timer> _pendingDeletes = {};
+
+  bool isPendingDelete(String lessonId) => _pendingDeletes.containsKey(lessonId);
 
   /// Runs the whole grounded pipeline on the server (event → memory → story → verification).
   /// [emotion] is only sent when the parked emotion feature is switched on.
@@ -79,6 +92,7 @@ class LessonService {
     return (json as List? ?? const [])
         .whereType<Map>()
         .map((m) => LessonSummary.fromJson(m.cast<String, dynamic>()))
+        .where((l) => !isPendingDelete(l.lessonId))
         .toList();
   }
 
@@ -94,6 +108,35 @@ class LessonService {
   Future<void> delete(String lessonId) async {
     await _api.delete('/api/v1/lessons/$lessonId');
     _cache.remove(lessonId);
+  }
+
+  /// Hides the lesson now and deletes it after [undoWindow] unless [undoDelete] is called.
+  /// [onDeleted] runs once the server confirmed; [onFailed] if it refused (the lesson is
+  /// shown again).
+  void scheduleDelete(
+    String lessonId, {
+    required Future<void> Function() onDeleted,
+    required void Function(ApiException error) onFailed,
+  }) {
+    _pendingDeletes[lessonId]?.cancel();
+    _pendingDeletes[lessonId] = Timer(undoWindow, () async {
+      try {
+        await delete(lessonId);
+        _pendingDeletes.remove(lessonId);
+        await onDeleted();
+      } on ApiException catch (e) {
+        _pendingDeletes.remove(lessonId);
+        onFailed(e);
+      }
+    });
+  }
+
+  /// Restores a lesson scheduled by [scheduleDelete]; false if it is already gone.
+  bool undoDelete(String lessonId) {
+    final timer = _pendingDeletes.remove(lessonId);
+    if (timer == null) return false;
+    timer.cancel();
+    return true;
   }
 
   Lesson _store(Lesson lesson) =>

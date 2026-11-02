@@ -1,7 +1,7 @@
 import 'package:equatable/equatable.dart';
 
-/// Mirrors the API's `ReviewScore`. The buttons use Anki-style English labels (as in
-/// the design) with a Vietnamese hint underneath.
+/// Mirrors the API's `ReviewScore`. The buttons lead with the Vietnamese label (the app's
+/// language) and keep the Anki-style English term underneath for learners who know it.
 enum ReviewScore {
   forgot('Again', 'Quên'),
   hard('Hard', 'Khó nhớ'),

@@ -78,10 +78,12 @@ class AuthCubit extends Cubit<AuthState> {
     emit(AuthState.authenticated(profile));
   }
 
-  /// No payment provider is wired up yet — see `UserService.setPro`.
-  Future<void> setPro(bool isPro) async {
-    final profile = await _users.setPro(isPro);
-    emit(AuthState.authenticated(profile));
+  /// Deletes the account server-side, then drops the local session. Throws on failure so the
+  /// caller can tell the learner the account still exists.
+  Future<void> deleteAccount() async {
+    await _users.deleteAccount();
+    await _auth.clearSession();
+    emit(const AuthState.unauthenticated());
   }
 
   Future<void> logout() async {

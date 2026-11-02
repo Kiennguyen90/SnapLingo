@@ -67,8 +67,8 @@ class _MainShellState extends State<MainShell> {
           ],
         ),
         bottomNavigationBar: DecoratedBox(
-          decoration: const BoxDecoration(
-            boxShadow: [BoxShadow(color: AppColors.navShadow, blurRadius: 16, offset: Offset(0, -2))],
+          decoration: BoxDecoration(
+            boxShadow: [BoxShadow(color: AppColors.navShadow, blurRadius: 16, offset: const Offset(0, -2))],
           ),
           child: NavigationBar(
             selectedIndex: shell.current.index,

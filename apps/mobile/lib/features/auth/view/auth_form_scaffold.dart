@@ -25,7 +25,7 @@ class AuthFormScaffold extends StatelessWidget {
       appBar: AppBar(backgroundColor: Colors.transparent),
       extendBodyBehindAppBar: true,
       body: DecoratedBox(
-        decoration: const BoxDecoration(gradient: AppGradients.welcomeBackground),
+        decoration: BoxDecoration(gradient: AppGradients.welcomeBackground),
         child: SafeArea(
           child: ListView(
             padding: const EdgeInsets.fromLTRB(24, 24, 24, 24),
@@ -44,7 +44,7 @@ class AuthFormScaffold extends StatelessWidget {
                     decoration: BoxDecoration(color: AppColors.errorSoft, borderRadius: BorderRadius.circular(12)),
                     child: Row(
                       children: [
-                        const Icon(Icons.error_outline_rounded, color: AppColors.error, size: 20),
+                        Icon(Icons.error_outline_rounded, color: AppColors.error, size: 20),
                         const SizedBox(width: 8),
                         Expanded(child: Text(error!, style: theme.textTheme.bodyMedium?.copyWith(color: AppColors.error))),
                       ],

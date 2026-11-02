@@ -30,7 +30,7 @@ abstract final class ShareCard {
     final titlePainter = TextPainter(
       text: TextSpan(
         text: title,
-        style: const TextStyle(fontSize: 58, height: 1.2, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
+        style: TextStyle(fontSize: 58, height: 1.2, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
       ),
       textDirection: TextDirection.ltr,
       maxLines: 3,
@@ -40,7 +40,7 @@ abstract final class ShareCard {
     final storyPainter = TextPainter(
       text: TextSpan(
         text: story,
-        style: const TextStyle(fontSize: 40, height: 1.45, color: AppColors.textPrimary),
+        style: TextStyle(fontSize: 40, height: 1.45, color: AppColors.textPrimary),
       ),
       textDirection: TextDirection.ltr,
       maxLines: _maxStoryLines,
@@ -48,7 +48,7 @@ abstract final class ShareCard {
     )..layout(maxWidth: textWidth);
 
     final footerPainter = TextPainter(
-      text: const TextSpan(
+      text: TextSpan(
         text: 'SnapLingo · Học tiếng Anh từ chính ảnh của bạn',
         style: TextStyle(fontSize: 30, color: AppColors.textSecondary),
       ),

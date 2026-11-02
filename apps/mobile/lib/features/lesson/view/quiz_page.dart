@@ -72,11 +72,11 @@ class _QuizPageState extends State<QuizPage> {
     return Scaffold(
       appBar: AppBar(
         leading: IconButton(
-          tooltip: 'Thoát quiz',
+          tooltip: 'Thoát bài kiểm tra',
           icon: const Icon(Icons.close_rounded),
           onPressed: () => Navigator.of(context).pop(),
         ),
-        title: const Text('Quick quiz'),
+        title: const Text('Kiểm tra nhanh'),
       ),
       body: SafeArea(
         top: false,
@@ -103,7 +103,7 @@ class _QuizPageState extends State<QuizPage> {
                               children: highlightWords(
                                 _item.questionEn,
                                 widget.lesson.vocabulary.map((v) => v.word),
-                                highlight: const TextStyle(color: AppColors.primary),
+                                highlight: TextStyle(color: AppColors.primary),
                               ),
                             ),
                           ),

@@ -55,7 +55,7 @@ class LessonCompletePage extends StatelessWidget {
                 borderColor: AppColors.primarySoft,
                 child: Row(
                   children: [
-                    const Icon(Icons.event_repeat_rounded, color: AppColors.primary),
+                    Icon(Icons.event_repeat_rounded, color: AppColors.primary),
                     const SizedBox(width: 12),
                     Expanded(
                       child: Text(
