@@ -31,6 +31,13 @@ public static class UsersEndpoints
         })
         .Produces<UserResponse>();
 
+        group.MapDelete("/me", async (UserService userService, ICurrentUserService currentUser, CancellationToken ct) =>
+        {
+            await userService.DeleteAccountAsync(currentUser.UserId, ct);
+            return Results.NoContent();
+        })
+        .Produces(StatusCodes.Status204NoContent);
+
         return app;
     }
 

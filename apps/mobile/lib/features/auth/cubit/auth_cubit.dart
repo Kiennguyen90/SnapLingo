@@ -78,6 +78,14 @@ class AuthCubit extends Cubit<AuthState> {
     emit(AuthState.authenticated(profile));
   }
 
+  /// Deletes the account server-side, then drops the local session. Throws on failure so the
+  /// caller can tell the learner the account still exists.
+  Future<void> deleteAccount() async {
+    await _users.deleteAccount();
+    await _auth.clearSession();
+    emit(const AuthState.unauthenticated());
+  }
+
   Future<void> logout() async {
     await _auth.logout();
     emit(const AuthState.unauthenticated());

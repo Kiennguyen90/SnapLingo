@@ -133,9 +133,50 @@ class SettingsPage extends StatelessWidget {
               onTap: () => _confirmLogout(context),
             ),
           ),
+          const SizedBox(height: 16),
+          AppCard(
+            padding: EdgeInsets.zero,
+            child: ListTile(
+              leading: Icon(Icons.delete_forever_rounded, color: AppColors.error),
+              title: Text('Xóa tài khoản', style: TextStyle(color: AppColors.error)),
+              subtitle: const Text('Xóa vĩnh viễn tài khoản, ảnh và bài học'),
+              onTap: () => _confirmDeleteAccount(context),
+            ),
+          ),
         ],
       ),
     );
+  }
+
+  Future<void> _confirmDeleteAccount(BuildContext context) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Xóa tài khoản?'),
+        content: const Text(
+          'Toàn bộ ảnh, bài học, từ vựng và tiến độ ôn tập của bạn sẽ bị xóa vĩnh viễn '
+          'và không thể khôi phục.',
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Hủy')),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: Text('Xóa vĩnh viễn', style: TextStyle(color: AppColors.error)),
+          ),
+        ],
+      ),
+    );
+    if (ok != true || !context.mounted) return;
+
+    final messenger = ScaffoldMessenger.of(context);
+    final cubit = context.read<AuthCubit>();
+    try {
+      await cubit.deleteAccount();
+    } catch (_) {
+      messenger.showSnackBar(
+        const SnackBar(content: Text('Không xóa được tài khoản. Kiểm tra kết nối và thử lại.')),
+      );
+    }
   }
 
   Future<void> _confirmLogout(BuildContext context) async {

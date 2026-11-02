@@ -1,12 +1,53 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using SnapLingo.Application.Abstractions;
 using SnapLingo.Application.Common;
+using SnapLingo.Application.Media;
 
 namespace SnapLingo.Application.Users;
 
 /// <summary>Read/update the logged-in user's own profile — the data every other feature (lessons, photos, review) hangs off of.</summary>
-public sealed class UserService(IAppDbContext db, IDateTimeProvider clock)
+public sealed class UserService(
+    IAppDbContext db, IDateTimeProvider clock, IObjectStorage storage, ILogger<UserService> logger)
 {
+    /// <summary>
+    /// Permanently deletes the account and everything it owns (Google Play account-deletion policy).
+    /// Rows go via the users -> * cascades; review_events -> lessons/vocabulary are ON DELETE
+    /// RESTRICT so they are removed first. Stored bytes are deleted afterwards, best effort, and
+    /// only when no other row still points at the same object key (TTS audio is shared across users).
+    /// </summary>
+    public async Task DeleteAccountAsync(Guid userId, CancellationToken ct)
+    {
+        var user = await db.Users.FirstOrDefaultAsync(u => u.Id == userId, ct)
+            ?? throw new NotFoundException("User not found.");
+
+        var photoKeys = await db.Photos.Where(p => p.UserId == userId).Select(p => p.ObjectKey).ToListAsync(ct);
+        var musicKeys = await db.PhotoMusicAssets
+            .Where(m => m.Photo!.UserId == userId).Select(m => m.ObjectKey).ToListAsync(ct);
+        var audioKeys = await db.AudioAssets
+            .Where(a => a.Lesson!.UserId == userId).Select(a => a.ObjectKey).ToListAsync(ct);
+
+        db.ReviewEvents.RemoveRange(db.ReviewEvents.Where(r => r.UserId == userId));
+        db.Users.Remove(user);
+        await db.SaveChangesAsync(ct);
+
+        var stillUsed = (await db.AudioAssets.Where(a => audioKeys.Contains(a.ObjectKey)).Select(a => a.ObjectKey).ToListAsync(ct))
+            .Concat(await db.PhotoMusicAssets.Where(m => musicKeys.Contains(m.ObjectKey)).Select(m => m.ObjectKey).ToListAsync(ct))
+            .ToHashSet();
+
+        foreach (var key in photoKeys.Concat(musicKeys).Concat(audioKeys).Distinct().Where(k => !stillUsed.Contains(k)))
+        {
+            try
+            {
+                await storage.DeleteAsync(key, ct);
+            }
+            catch (Exception ex)
+            {
+                logger.LogWarning(ex, "Could not delete stored object {ObjectKey} for deleted user {UserId}.", key, userId);
+            }
+        }
+    }
+
     public async Task<UserProfile> GetProfileAsync(Guid userId, CancellationToken ct)
     {
         var user = await db.Users.FirstOrDefaultAsync(u => u.Id == userId, ct)

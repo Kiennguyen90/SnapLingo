@@ -9,6 +9,9 @@ class UserService {
   Future<UserProfile> me() async =>
       UserProfile.fromJson(await _api.get('/api/v1/users/me') as Map<String, dynamic>);
 
+  /// Permanently deletes the account and all its server-side data.
+  Future<void> deleteAccount() => _api.delete('/api/v1/users/me');
+
   /// Only the non-null fields are changed (the endpoint is a partial PATCH).
   Future<UserProfile> update({
     String? displayName,
