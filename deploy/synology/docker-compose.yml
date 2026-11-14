@@ -1,0 +1,61 @@
+name: snaplingo
+
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: 10m
+    max-file: "3"
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: snaplingo-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-snaplingo}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: ${POSTGRES_DB:-snaplingo}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    logging: *logging
+
+  api:
+    image: ${API_IMAGE:-ghcr.io/kiennguyen90/snaplingo-api}:${API_TAG:-latest}
+    container_name: snaplingo-api
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "${API_PORT:-5082}:8080"
+    environment:
+      TZ: Asia/Ho_Chi_Minh
+      ASPNETCORE_ENVIRONMENT: Production
+      ASPNETCORE_FORWARDEDHEADERS_ENABLED: "true"
+      ConnectionStrings__Default: Host=postgres;Port=5432;Database=${POSTGRES_DB:-snaplingo};Username=${POSTGRES_USER:-snaplingo};Password=${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+      Database__MigrateOnStartup: ${DATABASE_MIGRATE_ON_STARTUP:-true}
+      Jwt__Issuer: ${JWT_ISSUER:-SnapLingo}
+      Jwt__Audience: ${JWT_AUDIENCE:-SnapLingo.Clients}
+      Jwt__SigningKey: ${JWT_SIGNING_KEY:?Set JWT_SIGNING_KEY in .env}
+      Storage__SigningKey: ${STORAGE_SIGNING_KEY:?Set STORAGE_SIGNING_KEY in .env}
+      Storage__PublicBaseUrl: ${STORAGE_PUBLIC_BASE_URL:?Set STORAGE_PUBLIC_BASE_URL in .env}
+      OpenAi__ApiKey: ${OPENAI_API_KEY:-}
+      GoogleAuth__AllowedClientIds__0: ${GOOGLE_CLIENT_ID:-}
+    volumes:
+      - media_data:/data/storage
+    healthcheck:
+      test: ["CMD", "bash", "-c", "exec 3<>/dev/tcp/127.0.0.1/8080 && printf 'GET /health HTTP/1.0\r\n\r\n' >&3 && head -n1 <&3 | grep -q 200"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    logging: *logging
+
+volumes:
+  postgres_data:
+  media_data:

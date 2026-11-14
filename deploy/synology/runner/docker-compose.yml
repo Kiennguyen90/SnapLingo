@@ -1,0 +1,27 @@
+# Self-hosted GitHub Actions runner on the NAS. It runs the deploy job of .github/workflows/docker.yml and connects out
+# to GitHub over HTTPS, so no port is opened on the NAS. Setup: ../README.md.
+# It controls Docker through the socket, which is root on the NAS; keep the repository private.
+
+name: snaplingo-runner
+
+services:
+  runner:
+    image: myoung34/github-runner:2.338.0-ubuntu-noble
+    container_name: snaplingo-runner
+    restart: unless-stopped
+    environment:
+      RUNNER_SCOPE: repo
+      REPO_URL: https://github.com/Kiennguyen90/SnapLingo
+      # Registration token from GitHub (Settings → Actions → Runners → New self-hosted runner). Only needed for
+      # the first start; it expires after an hour and the registration is then kept in ./data.
+      RUNNER_TOKEN: ${RUNNER_TOKEN:-}
+      RUNNER_NAME: synology
+      RANDOM_RUNNER_SUFFIX: "false"
+      LABELS: synology
+      CONFIGURED_ACTIONS_RUNNER_FILES_DIR: /runner/data
+      DISABLE_AUTOMATIC_DEREGISTRATION: "true"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./data:/runner/data
+      # Same path inside and outside: docker compose sends these paths to the NAS's Docker daemon
+      - ${DEPLOY_DIR:-/volume1/docker/snaplingo/app}:${DEPLOY_DIR:-/volume1/docker/snaplingo/app}
