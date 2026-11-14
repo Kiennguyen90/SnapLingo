@@ -1,6 +1,6 @@
 name: Publish and deploy API
 
-# On every merge to master: test, publish ghcr.io/<owner>/snaplingo-api, then deploy through the configured target.
+# On every merge to master: test, publish ghcr.io/<owner>/snaplingo-api, then deploy to the production VM over SSH.
 # Version tags (v1.2.3) only publish an image.
 on:
   push:
@@ -98,56 +98,3 @@ jobs:
             sleep 5
           done
           echo "::error::$DEPLOY_URL/health did not answer"; exit 1
-
-  deploy-synology:
-    name: Deploy to Synology
-    needs: publish
-    if: vars.DEPLOY_ENABLED == 'true' && github.ref == 'refs/heads/master'
-    runs-on: [self-hosted, synology]
-    timeout-minutes: 15
-    permissions:
-      contents: read
-      packages: read
-    concurrency:
-      group: deploy-synology
-      cancel-in-progress: false
-    env:
-      DEPLOY_DIR: ${{ vars.DEPLOY_DIR || '/volume1/docker/snaplingo/app' }}
-    steps:
-      - name: Checkout deploy files
-        uses: actions/checkout@v4
-        with:
-          sparse-checkout: deploy/synology
-
-      - name: Check the NAS setup
-        run: |
-          docker compose version
-          if [ ! -f "$DEPLOY_DIR/.env" ]; then
-            echo "::error::$DEPLOY_DIR/.env is missing; copy deploy/synology/.env.example there and fill it in"
-            exit 1
-          fi
-
-      - name: Copy compose file
-        run: cp deploy/synology/docker-compose.yml "$DEPLOY_DIR/docker-compose.yml"
-
-      - name: Log in to GHCR
-        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
-
-      - name: Pull and restart
-        working-directory: ${{ env.DEPLOY_DIR }}
-        run: |
-          docker compose stop api
-          docker compose pull api
-          docker compose up -d --wait --wait-timeout 300 --remove-orphans
-          echo "Running commit $(docker inspect -f '{{ index .Config.Labels "org.opencontainers.image.revision" }}' snaplingo-api)"
-
-      - name: Show API log
-        if: failure()
-        working-directory: ${{ env.DEPLOY_DIR }}
-        run: docker compose logs --tail 200 api
-
-      - name: Clean up
-        if: always()
-        run: |
-          docker logout ghcr.io
-          docker image prune -af --filter "label=org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}"

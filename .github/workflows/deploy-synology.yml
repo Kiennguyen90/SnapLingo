@@ -1,0 +1,93 @@
+name: Deploy API to Synology
+
+on:
+  push:
+    branches: [master]
+
+env:
+  IMAGE: ghcr.io/${{ github.repository_owner }}/snaplingo-api
+
+jobs:
+  build:
+    name: Build and publish API
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.IMAGE }}
+          tags: |
+            type=sha,format=short
+            type=raw,value=latest
+      - uses: docker/build-push-action@v6
+        with:
+          context: apps/api
+          file: apps/api/Dockerfile
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  deploy-synology:
+    name: Deploy to Synology
+    needs: build
+    if: vars.DEPLOY_ENABLED == 'true' && github.ref == 'refs/heads/master'
+    runs-on: [self-hosted, synology]
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      packages: read
+    concurrency:
+      group: deploy-synology
+      cancel-in-progress: false
+    env:
+      DEPLOY_DIR: ${{ vars.DEPLOY_DIR || '/volume1/docker/snaplingo/app' }}
+    steps:
+      - name: Checkout deploy files
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: deploy/synology
+
+      - name: Check the NAS setup
+        run: |
+          docker compose version
+          if [ ! -f "$DEPLOY_DIR/.env" ]; then
+            echo "::error::$DEPLOY_DIR/.env is missing; copy deploy/synology/.env.example there and fill it in"
+            exit 1
+          fi
+
+      - name: Copy compose file
+        run: cp deploy/synology/docker-compose.yml "$DEPLOY_DIR/docker-compose.yml"
+
+      - name: Log in to GHCR
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+
+      - name: Pull and restart
+        working-directory: ${{ env.DEPLOY_DIR }}
+        run: |
+          docker compose stop api
+          docker compose pull api
+          docker compose up -d --wait --wait-timeout 300 --remove-orphans
+          echo "Running commit $(docker inspect -f '{{ index .Config.Labels "org.opencontainers.image.revision" }}' snaplingo-api)"
+
+      - name: Show API log
+        if: failure()
+        working-directory: ${{ env.DEPLOY_DIR }}
+        run: docker compose logs --tail 200 api
+
+      - name: Clean up
+        if: always()
+        run: |
+          docker logout ghcr.io
+          docker image prune -af --filter "label=org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}"

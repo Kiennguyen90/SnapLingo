@@ -1,8 +1,8 @@
 # Deploy SnapLingo API lên Synology
 
-Workflow `.github/workflows/docker.yml` deploy API lên self-hosted runner có
+Workflow `.github/workflows/deploy-synology.yml` deploy API lên self-hosted runner có
 labels `self-hosted` và `synology` khi repository variable `DEPLOY_ENABLED=true`
-và workflow chạy trên branch `master`.
+sau khi job `build` publish image hoàn tất trên branch `master`.
 
 ## Chuẩn bị thư mục deploy
 
