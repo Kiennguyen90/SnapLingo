@@ -1,8 +1,8 @@
 name: CI
 
 on:
-  push:
-    branches: [master]
+  # No `push` trigger: docker.yml calls this workflow (workflow_call) on every master push.
+  # Having both made the two runs share one concurrency group and cancel each other.
   pull_request:
   workflow_call:
 
